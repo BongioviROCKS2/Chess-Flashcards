@@ -222,6 +222,9 @@ async function main() {
       if (f.otherAnswers != null && !isStringArray(f.otherAnswers)) {
         errs.push('fields.otherAnswers must be an array of SAN strings if present');
       }
+      if (f.siblingAnswers != null && !isStringArray(f.siblingAnswers)) {
+        errs.push('fields.siblingAnswers must be an array of SAN strings if present');
+      }
     }
 
     // Short-circuit if structural errors

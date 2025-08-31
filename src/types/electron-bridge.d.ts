@@ -28,6 +28,8 @@ declare global {
       readOne: (id: string) => Promise<any | null>;
       update: (card: any) => Promise<boolean>;
       create?: (card: any) => Promise<boolean>;
+      setDue?: (id: string, due: string | 'new' | undefined) => Promise<boolean>;
+      exportToDownloads?: () => Promise<{ ok: boolean; path?: string; message?: string }>;
     };
 
     zoom?: {

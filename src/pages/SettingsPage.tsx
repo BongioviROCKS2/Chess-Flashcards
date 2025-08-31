@@ -174,6 +174,35 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid" style={{ gap: 14 }}>
+          {/* Accounts subsection title */}
+          <div style={{ fontWeight: 600, fontSize: 18, opacity: 0.95, marginTop: 4 }}>
+            Accounts
+          </div>
+
+          {/* Chess.com username */}
+          <div className="row" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12, alignItems: 'center' }}>
+            <div>Chess.com Username</div>
+            <input
+              type="text"
+              value={settings.chessComUser || ''}
+              onChange={e => update({ chessComUser: e.currentTarget.value })}
+              style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }}
+              placeholder="optional"
+            />
+          </div>
+
+          {/* Lichess username */}
+          <div className="row" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12, alignItems: 'center' }}>
+            <div>Lichess Username</div>
+            <input
+              type="text"
+              value={settings.lichessUser || ''}
+              onChange={e => update({ lichessUser: e.currentTarget.value })}
+              style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }}
+              placeholder="optional"
+            />
+          </div>
+
           {/* Keybinds (first item) */}
           <div className="row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>Keybinds</div>

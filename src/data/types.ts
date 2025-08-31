@@ -39,6 +39,7 @@ export type CardFields = {
   eval?: EvalInfo;
   exampleLine?: string[];
   otherAnswers?: string[];
+  siblingAnswers?: string[];
 
   // Lineage
   depth: number;

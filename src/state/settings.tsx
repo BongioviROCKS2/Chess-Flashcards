@@ -12,6 +12,9 @@ export type Settings = {
   stockfishDepth: number;
   stockfishThreads: number;
   stockfishHash: number;
+  // Accounts
+  chessComUser?: string;
+  lichessUser?: string;
 };
 
 const DEFAULTS: Settings = {
@@ -23,6 +26,8 @@ const DEFAULTS: Settings = {
   stockfishDepth: 25,
   stockfishThreads: 1,
   stockfishHash: 1024,
+  chessComUser: '',
+  lichessUser: '',
 };
 
 const KEY = 'chessflashcards.settings.v1';

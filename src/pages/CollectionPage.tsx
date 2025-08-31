@@ -105,6 +105,7 @@ type ColumnKey =
   | 'answerFen'
   | 'exampleLine'
   | 'otherAnswers'
+  | 'siblingAnswers'
   | 'parent'
   | 'children'
   | 'descendants';
@@ -122,6 +123,7 @@ const ALL_COLUMNS: Record<ColumnKey, { label: string; width?: number }> = {
   answerFen: { label: 'Answer FEN', width: 320 },
   exampleLine: { label: 'Example Line', width: 320 },
   otherAnswers: { label: 'Other Answers', width: 260 },
+  siblingAnswers: { label: 'Sibling Answers', width: 260 },
   parent: { label: 'Parent', width: 220 },
   children: { label: 'Children', width: 160 },
   descendants: { label: 'Descendants', width: 160 },
@@ -149,6 +151,7 @@ type Draft = {
     evalDepth: string;
     exampleLine: string;
     otherAnswers: string;
+    siblingAnswers: string;
     depth: string;
     parent: string;
   };
@@ -185,6 +188,7 @@ function toDraft(c: Card): Draft {
       evalDepth: String(f.eval?.depth ?? ''),
       exampleLine: arrToLine(f.exampleLine),
       otherAnswers: arrToLine(f.otherAnswers),
+      siblingAnswers: arrToLine(f.siblingAnswers),
       depth: String(f.depth ?? ''),
       parent: f.parent ?? '',
     },
@@ -219,6 +223,7 @@ function fromDraft(d: Draft, base: Card | null): Card {
       eval: evalField as any,
       exampleLine: lineToArr(d.fields.exampleLine),
       otherAnswers: lineToArr(d.fields.otherAnswers),
+      siblingAnswers: lineToArr(d.fields.siblingAnswers),
       depth: depthNum,
       parent: d.fields.parent || undefined,
       children: fbase.children,
@@ -573,6 +578,7 @@ export default function CollectionPage() {
       case 'answerFen': return f.answerFen ?? '';
       case 'exampleLine': return (f.exampleLine || []).join(' ');
       case 'otherAnswers': return (f.otherAnswers || []).join(' ');
+      case 'siblingAnswers': return (f.siblingAnswers || []).join(' ');
       case 'parent': return f.parent ?? '';
       case 'children': return (f.children || []).length ? String((f.children || []).length) : '';
       case 'descendants': return (f.descendants || []).length ? String((f.descendants || []).length) : '';
@@ -701,7 +707,7 @@ export default function CollectionPage() {
   const leftPaneStyle: React.CSSProperties = { ...paneCommon, width: leftW, flex: '0 0 auto', borderLeft: '1px solid var(--border, #333)' };
   const centerPaneStyle: React.CSSProperties = { ...paneCommon, flex: 1 };
   const centerScroll: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' };
-  const rightPaneStyle: React.CSSProperties = { ...paneCommon, width: rightW, flex: '0 0 auto' };
+  const rightPaneStyle: React.CSSProperties = { ...paneCommon, width: rightW, flex: '0 0 auto', minHeight: 0, overflow: 'hidden' };
   const vSplitter: React.CSSProperties = {
     width: 6,
     flex: '0 0 6px',
@@ -734,8 +740,8 @@ export default function CollectionPage() {
     borderBottom: '1px solid var(--border, #333)',
     background: 'transparent',
   };
-  const rightBottomStyle: React.CSSProperties = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'auto' };
-  const rightBottomScroll: React.CSSProperties = { flex: 1, minHeight: 0 };
+  const rightBottomStyle: React.CSSProperties = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+  const rightBottomScroll: React.CSSProperties = { flex: 1, minHeight: 0, overflow: 'auto' };
 
   /* ============
      Render
@@ -745,7 +751,24 @@ export default function CollectionPage() {
     <div className="page" style={pageWrap}>
       <div style={headerRow}>
         <div style={{ fontSize: 18, fontWeight: 600 }}>Collection</div>
-        <button className="button secondary" onClick={goBack}>Back</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="button"
+            title="Export to Downloads"
+            onClick={async () => {
+              try {
+                const res = await (window as any).cards?.exportToDownloads?.();
+                if (res?.ok) alert(`Exported to: ${res.path}`);
+                else alert(`Export failed: ${res?.message || 'Unknown error'}`);
+              } catch (e: any) {
+                alert(`Export failed: ${e?.message || String(e)}`);
+              }
+            }}
+          >
+            Export
+          </button>
+          <button className="button secondary" onClick={goBack}>Back</button>
+        </div>
       </div>
 
       <div style={bodyRow} ref={bodyRef}>
@@ -930,10 +953,10 @@ export default function CollectionPage() {
 
           <div style={rightBottomStyle}>
             <div style={sectionTitle}>{selectedCard ? 'Edit Card' : 'Details'}</div>
-            {!selectedCard || !draft ? (
-              <div style={{ padding: 12, opacity: 0.7 }}>Select a card to view and edit its details.</div>
-            ) : (
-              <div style={rightBottomScroll}>
+            <div style={rightBottomScroll}>
+              {!selectedCard || !draft ? (
+                <div style={{ padding: 12, opacity: 0.7 }}>Select a card to view and edit its details.</div>
+              ) : (
                 <div className="card grid" style={{ gap: 12, border: 0, background: 'transparent', boxShadow: 'none', padding: 12, minWidth: 720 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div className="sub" aria-live="polite" style={{ visibility: saved ? 'visible' : 'hidden' }}>
@@ -1143,8 +1166,8 @@ export default function CollectionPage() {
                     />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

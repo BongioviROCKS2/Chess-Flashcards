@@ -767,6 +767,17 @@ export default function ManualAddPage() {
               />
             </div>
 
+            <div className="row" style={{ display: 'grid', gridTemplateColumns: `${LABEL_COL}px 1fr`, gap: 12 }}>
+              <div>Sibling Answers (SAN)</div>
+              <textarea
+                rows={2}
+                value={draft.fields.siblingAnswers}
+                onChange={e => setField('siblingAnswers', e.currentTarget.value)}
+                placeholder="moves treated equivalent to best"
+                style={{ background: '#ffffff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }}
+              />
+            </div>
+
             <div style={{ fontWeight: 600, fontSize: 18, opacity: 0.95, marginTop: 6 }}>
               Lineage
             </div>

@@ -15,6 +15,8 @@ try {
     readOne: (id)   => ipcRenderer.invoke('cards:readOne', id),
     update:  (card) => ipcRenderer.invoke('cards:update', card),
     create:  (card) => ipcRenderer.invoke('cards:create', card),
+    setDue:  (id, due) => ipcRenderer.invoke('cards:setDue', { id, due }),
+    exportToDownloads: () => ipcRenderer.invoke('cards:exportToDownloads'),
   });
 
   // Zoom controls

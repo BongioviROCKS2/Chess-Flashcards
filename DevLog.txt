@@ -36,6 +36,11 @@
         lineup the show answer button with the review buttons on back
         added feature to manually add cards (stockfish assisted or full manual)
         make all pages width scale with the app width
-    1 hour:
+    5 hours:
         add collection page
-        connect code to github for codex in vs code use
+        connect code to github for codex in vs code use (whoa)
+        fixed the review persistency when a previously reviewed card becomes the new highest priority review
+        add export collection to collection page
+        add setting to save chess.com and lichess username
+        add ability to hove over buttons to see the keybind
+        add flip board button with keybind to review

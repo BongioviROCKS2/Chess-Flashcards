@@ -10,6 +10,9 @@ export type ReviewUndoStep = {
   deckId?: string;
   /** Timestamp for ordering/debugging (set when pushed) */
   ts: number;
+  /** Optional scheduler snapshots for undo */
+  prevSched?: any;
+  newSched?: any;
 };
 
 const KEY = 'chessflashcards.reviewHistory.v1'; // session-scoped

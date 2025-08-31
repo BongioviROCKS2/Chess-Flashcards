@@ -1,5 +1,5 @@
 // electron/main.js  (ESM)
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -196,11 +196,105 @@ function registerIpc() {
     }
   });
 
-  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create');
+  // Export cards to user's Downloads folder
+  ipcMain.handle('cards:exportToDownloads', async () => {
+    try {
+      const arr = loadCardsArray();
+      const dir = app.getPath('downloads');
+      const ts = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const name = `chess-cards-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+      const outPath = path.join(dir, name);
+      fs.writeFileSync(outPath, JSON.stringify(arr, null, 2) + '\n', 'utf-8');
+      return { ok: true, path: outPath };
+    } catch (e) {
+      console.error('[cards:exportToDownloads] failed:', e);
+      return { ok: false, message: e?.message || 'Export failed' };
+    }
+  });
+
+  // Update only the 'due' field of a card by id
+  ipcMain.handle('cards:setDue', async (_evt, payload) => {
+    try {
+      const { id, due } = payload || {};
+      if (!id || typeof id !== 'string') return false;
+      const arr = loadCardsArray();
+      const idx = arr.findIndex(x => x && x.id === id);
+      if (idx === -1) return false;
+      if (typeof due === 'undefined') {
+        delete arr[idx].due;
+      } else {
+        arr[idx].due = due;
+      }
+      saveCardsArray(arr);
+      return true;
+    } catch (e) {
+      console.error('[cards:setDue] failed:', e);
+      return false;
+    }
+  });
+
+  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create, cards:setDue, cards:exportToDownloads');
 }
 
 app.whenReady().then(() => {
   registerIpc();
+  // App menu (basic)
+  try {
+    const isMac = process.platform === 'darwin';
+    const template = [
+      ...(isMac ? [{
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ]
+      }] : []),
+      {
+        label: 'File',
+        submenu: [
+          ...(isMac ? [] : [{ role: 'quit' }]),
+        ]
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+          { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }
+        ]
+      },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' }, { role: 'forceReload' },
+          { role: 'toggleDevTools' }, { type: 'separator' },
+          { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' },
+          { role: 'togglefullscreen' }
+        ]
+      },
+      {
+        role: 'window',
+        submenu: [ { role: 'minimize' }, { role: 'close' } ]
+      },
+      {
+        role: 'help',
+        submenu: [
+          { label: 'Learn More', click: async () => { try { await shell.openExternal('https://www.chess.com/learn'); } catch {} } }
+        ]
+      }
+    ];
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+  } catch (e) {
+    console.warn('[main] menu build failed:', e?.message || e);
+  }
   createWindow();
 
   app.on('activate', () => {

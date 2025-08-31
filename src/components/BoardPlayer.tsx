@@ -38,6 +38,7 @@ type Base = {
 };
 
 export type BoardPlayerProps = (PgnMode | SanMode | FramesMode) & Base;
+type WithFlip = { onFlip?: () => void };
 
 function pgnToSanArray(pgn: string): string[] {
   if (!pgn?.trim()) return [];
@@ -81,7 +82,7 @@ function Icon({ name }: { name: 'first' | 'prev' | 'next' | 'last' }) {
   );
 }
 
-export default function BoardPlayer(props: BoardPlayerProps) {
+export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
   const { size = 360, startAt = 'last', orientation = 'white', showMoveLabel = true } = props;
 
   const { frames, lastMoves } = useMemo(() => {
@@ -166,7 +167,7 @@ export default function BoardPlayer(props: BoardPlayerProps) {
 
   // Attach keybinds globally while this component is mounted.
   useBoardKeybinds(
-    { first: goFirst, prev: goPrev, next: goNext, last: goLast },
+    { first: goFirst, prev: goPrev, next: goNext, last: goLast, flip: props.onFlip },
     true
   );
 

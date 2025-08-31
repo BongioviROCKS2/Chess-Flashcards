@@ -8,6 +8,7 @@ export type KeyAction =
   | 'board.prev'
   | 'board.next'
   | 'board.last'
+  | 'board.flip'
   // Review actions
   | 'review.showAnswer'
   | 'review.again'
@@ -43,6 +44,7 @@ const DEFAULT_BINDS: KeybindMap = {
   'board.prev':  ['ArrowLeft', 'A'],
   'board.next':  ['ArrowRight', 'D'],
   'board.last':  ['ArrowUp', 'W'],
+  'board.flip':  ['F', ''],
 
   // Review
   'review.showAnswer': ['Space', 'Enter'],

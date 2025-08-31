@@ -6,6 +6,7 @@ export type BoardKeyHandlers = {
   prev?: () => void;
   next?: () => void;
   last?: () => void;
+  flip?: () => void;
 };
 
 /**
@@ -46,6 +47,9 @@ export function useBoardKeybinds(handlers: BoardKeyHandlers, enabled = true) {
           break;
         case 'board.last':
           if (handlers.last) { handlers.last(); handled = true; }
+          break;
+        case 'board.flip':
+          if (handlers.flip) { handlers.flip(); handled = true; }
           break;
       }
 

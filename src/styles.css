@@ -57,7 +57,7 @@ body {
   height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
-  overflow: hidden; /* prevent window scroll; panes manage their own scroll */
+  overflow: auto; /* allow window to scroll both axes */
 }
 
 .header {

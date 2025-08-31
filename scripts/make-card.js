@@ -24,6 +24,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { Chess } from 'chess.js';
+import { resolveEnginePath } from './engine-path.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,15 +33,7 @@ const ROOT = process.cwd();
 const CARDS_PATH = path.resolve(ROOT, 'src', 'data', 'cards.json');
 const CONFIG_PATH = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
 
-function resolveEnginePath() {
-  if (process.platform === 'win32') {
-    return path.resolve(ROOT, 'engines', 'win-x64', 'stockfish17.1.exe'); // updated filename
-  }
-  if (process.platform === 'darwin') {
-    return path.resolve(ROOT, 'engines', 'mac-arm64', 'stockfish');
-  }
-  return path.resolve(ROOT, 'engines', 'linux-x64', 'stockfish');
-}
+// Engine path resolution is shared via scripts/engine-path.js
 
 // ---------- CLI ----------
 function parseArgs(argv) {

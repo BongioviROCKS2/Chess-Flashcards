@@ -1,17 +1,17 @@
-add collection page to see whole collection
-add ability to export collection to the downloads folder
-add stats page
-connect to chess.com (and lichess?) username for game log
-add "auto add" feature to scan games and add cards
-add items to the manage part of a deck
+create the deck manage page for various deck-specific settings
+    add ability to export individual decks from the deck manage page
+remove formatting bugs on collection page
+improve stats page to include more review stats, including one like what the Anki app has
+use chess.com username to scan all historical games by that user for auto add card creation
+    if the games have been previously scanned, log them so they do not get scanned on the next auto add
+review title should say full deck name (ex. Openings/White/Other) for that card, not just the deepest subdeck
+make sure keybind to flip board button in review is functional
+Make it so the review buttons can be hovered over to see the keybind
 
-review title should say full deck name for that card (not just the deck selected)
-add button in review to flip the board
-when reviewing a card, if a more urgently due card becomes due it will change which answer is shown when expecting to see the answer of the original card you were reviewing(you see the wrong answer)
-
+Future:
 add a field to track sibling answers to minimize differences
-
-add/remove items from the file,edit,view,window,help bar on top
-cleanup things that aren't needed?
-
-Make it so each button can be hovered over to see the keybind
+add/remove items from the file,edit,view,window,help bar on tooltips
+    ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)
+cleanup files that aren't needed
+Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, etc.)
+push changes to github

@@ -30,6 +30,7 @@ type Draft = {
     evalDepth: string; // keep as string
     exampleLine: string; // space-separated SAN
     otherAnswers: string; // space-separated SAN
+    siblingAnswers: string; // space-separated SAN
     depth: string;  // required in model; default to computed/0 when blank
     parent: string; // optional
     // children/descendants are shown read-only
@@ -76,6 +77,7 @@ function toDraft(c: Card): Draft {
       evalDepth: String((c.fields as any).eval?.depth ?? ''),
       exampleLine: arrToLine(c.fields.exampleLine),
       otherAnswers: arrToLine(c.fields.otherAnswers),
+      siblingAnswers: arrToLine((c.fields as any).siblingAnswers),
       depth: String((c.fields as any).depth ?? ''), // may be '', we coerce on save
       parent: (c.fields as any).parent ?? '',
     },
@@ -175,6 +177,7 @@ export default function EditCardPage() {
           eval: evalField as any,
           exampleLine: lineToArr(draft.fields.exampleLine),
           otherAnswers: lineToArr(draft.fields.otherAnswers),
+          siblingAnswers: lineToArr(draft.fields.siblingAnswers),
           depth: depthNum,
           parent: draft.fields.parent || undefined,
           children: card?.fields.children,
@@ -386,6 +389,17 @@ export default function EditCardPage() {
             rows={2}
             style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }}
             placeholder="Nf3 c4 g3"
+          />
+        </div>
+
+        <div className="row" style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 12 }}>
+          <div>Sibling Answers (SAN)</div>
+          <textarea
+            value={draft.fields.siblingAnswers}
+            onChange={e => { const v = e.currentTarget.value; setField('siblingAnswers', v); }}
+            rows={2}
+            style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }}
+            placeholder="SAN moves treated equivalent to best"
           />
         </div>
 

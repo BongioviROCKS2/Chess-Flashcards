@@ -1,12 +1,14 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { getDeckById } from '../decks';
-import { getDueCardsForDeck, pushCardDueMinutes, getCardDue } from '../data/cardStore';
-import { useMemo, useState } from 'react';
+import { getDueCardsForDeck, getCardDue, allCards } from '../data/cardStore';
+import { useEffect, useMemo, useState } from 'react';
+import { useKeybinds, KeyAction } from '../context/KeybindsProvider';
 import BoardPlayer from '../components/BoardPlayer';
 import { Chess } from 'chess.js';
 import { useSettings } from '../state/settings';
 import { useReviewKeybinds } from '../hooks/useReviewKeybinds';
 import { pushReviewUndoStep, undoLast, canUndo } from '../state/reviewHistory';
+import { schedule, getMeta, restore as restoreSchedule } from '../state/scheduler';
 import { useBackKeybind } from '../hooks/useBackKeybind';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -63,23 +65,42 @@ export default function ReviewPage() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
   const deck = getDeckById(deckId);
-  const title = deck ? deck.name : deckId;
 
   const { settings } = useSettings();
+  const { binds } = useKeybinds();
 
   // force re-render after marking a card reviewed or undoing
   const [, setBump] = useState(0);
   const bump = () => setBump(v => v + 1);
 
-  const dueCards = deckId ? getDueCardsForDeck(deckId) : [];
+  const [queueIds, setQueueIds] = useState<string[]>(() => (deckId ? getDueCardsForDeck(deckId).map(c => c.id) : []));
+  const [currentId, setCurrentId] = useState<string | null>(() => (deckId ? (getDueCardsForDeck(deckId)[0]?.id ?? null) : null));
   const [showBack, setShowBack] = useState(false);
-  const current = dueCards[0];
+  const [flipped, setFlipped] = useState(false);
+  const current = useMemo(() => (currentId ? (allCards().find(c => c.id === currentId) ?? null) : null), [currentId]);
+
+  const title = useMemo(() => {
+    // Prefer the actual card's deck name if available; otherwise fallback to route deck
+    const cardDeckName = current ? (getDeckById(current.deck)?.name || current.deck) : null;
+    if (cardDeckName) return cardDeckName;
+    return deck ? deck.name : deckId;
+  }, [current, deck, deckId]);
+
+  // Rebuild queue whenever deck changes or refresh is requested
+  useEffect(() => {
+    const list = deckId ? getDueCardsForDeck(deckId) : [];
+    setQueueIds(list.map(c => c.id));
+    setCurrentId(list[0]?.id ?? null);
+    setShowBack(false);
+  }, [deckId]);
 
   // Orientation based on the *card* deck (so Openings mixes flip per card)
   const orientation: 'white' | 'black' = useMemo(() => {
     if (!current) return 'white';
-    return isBlackDeckId(current.deck) ? 'black' : 'white';
-  }, [current]);
+    const base: 'white' | 'black' = isBlackDeckId(current.deck) ? 'black' : 'white';
+    if (!flipped) return base;
+    return base === 'white' ? 'black' : 'white';
+  }, [current, flipped]);
 
   // Build FRONT start behavior from settings
   const frontStartAt: 'first' | 'last' = settings.frontStartAtReview ? 'last' : 'first';
@@ -134,30 +155,43 @@ export default function ReviewPage() {
   const handleBack = () => navigate('/');
 
   const handleShowAnswer = () => setShowBack(true);
+  const handleFlip = () => setFlipped(f => !f);
 
   const completeReview = (grade: 'again' | 'hard' | 'good' | 'easy') => {
     if (!current) return;
-    // Capture previous due before modifying
     const prevDue = getCardDue(current.id);
-    // For testing: push due 1 minute forward
-    pushCardDueMinutes(current.id, 1);
-    const newDue = getCardDue(current.id) as string; // ISO we just set
+    const prevSched = getMeta(current.id);
+    const { newDue, newMeta } = schedule(current.id, grade);
 
-    // Record undo step in session history
+    // Record undo step with scheduler snapshot (cast to tolerate optional fields)
     pushReviewUndoStep({
       cardId: current.id,
       prevDue,
       newDue,
       deckId,
-    });
+      prevSched: prevSched as any,
+      newSched: newMeta as any,
+    } as any);
 
+    // Recompute queue after scheduling (and clear back)
+    const list = deckId ? getDueCardsForDeck(deckId) : [];
+    setQueueIds(list.map(c => c.id));
+    setCurrentId(list[0]?.id ?? null);
     setShowBack(false);
-    bump(); // re-query due cards and show next
+    bump();
   };
 
   const performUndo = () => {
     const step = undoLast();
     if (!step) return;
+    // Restore scheduler state if present
+    if ((step as any).prevSched) {
+      restoreSchedule(step.cardId, (step as any).prevSched, step.prevDue);
+    }
+    // Rebuild queue and clear back
+    const list = deckId ? getDueCardsForDeck(deckId) : [];
+    setQueueIds(list.map(c => c.id));
+    setCurrentId(list[0]?.id ?? null);
     setShowBack(false);
     bump();
   };
@@ -181,6 +215,14 @@ export default function ReviewPage() {
   // --- Keybinds: Back (Backspace) ---
   useBackKeybind(handleBack, true);
 
+  // --- Helper: keybind tooltips ---
+  function keysFor(action: KeyAction): string {
+    const pair = binds[action] || ['', ''];
+    const [a, b] = pair;
+    const both = [a, b].filter(Boolean).join(' or ');
+    return both || '';
+  }
+
   return (
     <div className="container">
       <div className="card grid">
@@ -191,16 +233,17 @@ export default function ReviewPage() {
               className="button"
               onClick={performUndo}
               disabled={!canUndo()}
-              title="Undo last review (Ctrl+Z)"
+              title={`Undo last review${keysFor('review.undo') ? ` (${keysFor('review.undo')})` : ''}`}
             >
               Undo
             </button>
-            <button className="button secondary" onClick={handleBack}>Back</button>
+            <button className="button" onClick={handleFlip} title={`Flip board${keysFor('board.flip') ? ` (${keysFor('board.flip')})` : ''}`}>Flip</button>
+            <button className="button secondary" onClick={handleBack} title="Back (Backspace)">Back</button>
           </div>
         </div>
 
         <div className="grid" style={{ padding: 8 }}>
-          {dueCards.length === 0 ? (
+          {queueIds.length === 0 ? (
             <div className="sub">There are no more cards to review for the day in this deck.</div>
           ) : (
             <>
@@ -217,6 +260,7 @@ export default function ReviewPage() {
                     startAt={frontStartAt}
                     orientation={orientation}
                     showMoveLabel={true}
+                    onFlip={handleFlip}
                   />
 
                   {/* Spacer to align Show Answer with back-side grading buttons */}
@@ -229,7 +273,7 @@ export default function ReviewPage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <button className="button secondary" onClick={handleShowAnswer}>
+                    <button className="button secondary" onClick={handleShowAnswer} title={`Show Answer${keysFor('review.showAnswer') ? ` (${keysFor('review.showAnswer')})` : ''}`}>
                       Show Answer
                     </button>
                   </div>
@@ -246,6 +290,7 @@ export default function ReviewPage() {
                     size={420}
                     orientation={orientation}
                     showMoveLabel={true}
+                    onFlip={handleFlip}
                   />
                   <div className="sub" style={{ textAlign: 'center' }}>
                     Best: <strong>{current?.fields.answer || '(unknown)'}</strong>
@@ -258,10 +303,10 @@ export default function ReviewPage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <button className="button" onClick={() => completeReview('again')}>Again</button>
-                    <button className="button" onClick={() => completeReview('hard')}>Hard</button>
-                    <button className="button" onClick={() => completeReview('good')}>Good</button>
-                    <button className="button" onClick={() => completeReview('easy')}>Easy</button>
+                    <button className="button" onClick={() => completeReview('again')} title={`Again${keysFor('review.again') ? ` (${keysFor('review.again')})` : ''}`}>Again</button>
+                    <button className="button" onClick={() => completeReview('hard')}  title={`Hard${keysFor('review.hard') ? ` (${keysFor('review.hard')})` : ''}`}>Hard</button>
+                    <button className="button" onClick={() => completeReview('good')}  title={`Good${keysFor('review.good') ? ` (${keysFor('review.good')})` : ''}`}>Good</button>
+                    <button className="button" onClick={() => completeReview('easy')}  title={`Easy${keysFor('review.easy') ? ` (${keysFor('review.easy')})` : ''}`}>Easy</button>
                   </div>
                 </>
               )}

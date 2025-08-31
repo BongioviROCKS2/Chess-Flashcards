@@ -20,6 +20,7 @@ const BOARD_ROWS: Row[] = [
   { action: 'board.prev',  label: 'Previous' },
   { action: 'board.next',  label: 'Next' },
   { action: 'board.last',  label: 'Last Position' },
+  { action: 'board.flip',  label: 'Flip Board' },
 ];
 
 const REVIEW_ROWS: Row[] = [
