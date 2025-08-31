@@ -1,0 +1,20 @@
+engines/**
+!engines/.keep
+decks/**/*.json
+# deps
+node_modules/
+
+# builds / caches
+dist/
+out/
+build/
+.vite/
+coverage/
+
+# env & logs & misc
+.env
+.env.*
+*.log
+.DS_Store
+.idea/
+.vscode/

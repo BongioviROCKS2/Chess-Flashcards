@@ -1,0 +1,17 @@
+add collection page to see whole collection
+add ability to export collection to the downloads folder
+add stats page
+connect to chess.com (and lichess?) username for game log
+add "auto add" feature to scan games and add cards
+add items to the manage part of a deck
+
+review title should say full deck name for that card (not just the deck selected)
+add button in review to flip the board
+when reviewing a card, if a more urgently due card becomes due it will change which answer is shown when expecting to see the answer of the original card you were reviewing(you see the wrong answer)
+
+add a field to track sibling answers to minimize differences
+
+add/remove items from the file,edit,view,window,help bar on top
+cleanup things that aren't needed?
+
+Make it so each button can be hovered over to see the keybind

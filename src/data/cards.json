@@ -1,0 +1,163 @@
+[
+  {
+    "id": "c_1756583593558_ki5j",
+    "deck": "white-other",
+    "tags": [],
+    "fields": {
+      "moveSequence": "",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "answer": "e4",
+      "answerFen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "eval": {
+        "kind": "cp",
+        "value": 38,
+        "depth": 25
+      },
+      "exampleLine": [
+        "e4",
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bb5",
+        "a6",
+        "Ba4",
+        "Nf6",
+        "O-O",
+        "Nxe4",
+        "d4",
+        "b5",
+        "Bb3",
+        "d5",
+        "dxe5",
+        "Be6",
+        "c3",
+        "Bc5",
+        "Nbd2",
+        "O-O",
+        "Bc2",
+        "Bf5",
+        "Nb3",
+        "Bb6",
+        "Nfd4",
+        "Nxd4",
+        "cxd4",
+        "Bg6",
+        "Be3"
+      ],
+      "otherAnswers": [
+        "d4",
+        "Nf3",
+        "c4",
+        "g3"
+      ],
+      "depth": 1,
+      "children": [
+        "c_1756583675322_s11a"
+      ]
+    },
+    "due": "new"
+  },
+  {
+    "id": "c_1756583648478_j31g",
+    "deck": "black-other",
+    "tags": [],
+    "fields": {
+      "moveSequence": "e4",
+      "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+      "answer": "e5",
+      "answerFen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "eval": {
+        "kind": "cp",
+        "value": -26,
+        "depth": 25
+      },
+      "exampleLine": [
+        "e5",
+        "Nf3",
+        "Nc6",
+        "Bb5",
+        "Nf6",
+        "O-O",
+        "Nxe4",
+        "Re1",
+        "Nd6",
+        "Nxe5",
+        "Nxe5",
+        "Rxe5+",
+        "Be7",
+        "Bf1",
+        "O-O",
+        "d4",
+        "Bf6",
+        "Re1",
+        "Re8",
+        "Nc3",
+        "Rxe1",
+        "Qxe1",
+        "Bxd4",
+        "Nd5",
+        "b5",
+        "c3"
+      ],
+      "otherAnswers": [
+        "c5",
+        "e6",
+        "c6"
+      ],
+      "depth": 1
+    },
+    "due": "new"
+  },
+  {
+    "id": "c_1756583675322_s11a",
+    "deck": "white-other",
+    "tags": [],
+    "fields": {
+      "moveSequence": "e4 e5",
+      "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
+      "answer": "Nf3",
+      "answerFen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2",
+      "eval": {
+        "kind": "cp",
+        "value": 34,
+        "depth": 25
+      },
+      "exampleLine": [
+        "Nf3",
+        "Nc6",
+        "Bb5",
+        "a6",
+        "Ba4",
+        "Nf6",
+        "O-O",
+        "Nxe4",
+        "d4",
+        "b5",
+        "Bb3",
+        "d5",
+        "dxe5",
+        "Be6",
+        "Nbd2",
+        "Bc5",
+        "Nxe4",
+        "dxe4",
+        "Ng5",
+        "Bxb3",
+        "axb3",
+        "Qxd1",
+        "Rxd1",
+        "O-O",
+        "Nxe4",
+        "Bd4",
+        "c3",
+        "Bxe5"
+      ],
+      "otherAnswers": [
+        "Nc3"
+      ],
+      "depth": 2,
+      "parent": "c_1756583593558_ki5j"
+    },
+    "due": "new"
+  }
+]

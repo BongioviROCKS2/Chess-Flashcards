@@ -1,0 +1,73 @@
+{
+  "name": "chess-flashcards",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron/main.js",
+  "type": "module",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "web:dev": "vite",
+    "build:renderer": "vite build",
+    "build": "npm run build:renderer && npx electron-builder",
+    "start": "electron .",
+    "icons:deps": "npm i -D sharp icon-gen",
+    "icons:gen": "node scripts/make-icons.js",
+    "icons:clean": "npm remove -D sharp icon-gen",
+    "make-icons": "npm run icons:deps && npm run icons:gen && npm run icons:clean",
+    "validate:cards": "node scripts/validate-cards.mjs"
+  },
+  "build": {
+    "appId": "com.example.chessflashcards",
+    "asar": true,
+    "asarUnpack": [
+      "engines/**"
+    ],
+    "files": [
+      "dist/",
+      "electron/",
+      "assets/",
+      "engines/**",
+      "package.json",
+      "!**/node_modules/**",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "engines/",
+        "to": "engines"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/logo.ico"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.education",
+      "icon": "assets/logo.icns"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "assets/icons/png"
+    }
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.0.0",
+    "cross-env": "^7.0.3",
+    "electron": "^31.0.0",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0",
+    "wait-on": "^8.0.0"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.25.1"
+  }
+}

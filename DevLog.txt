@@ -1,0 +1,41 @@
+8/22/25:
+    1 hour: 
+        create the project folder
+        an app window
+8/23/25:
+    2 hours: 
+        create deck structure
+        first (incomplete) card
+        the settings menu with the Start review with... preference
+8/24/25:
+    3 hours: 
+        add interactive board to review
+        functioning review buttons
+        settings:keybind submenu (for interactive arrows, show answer, and review results) with sections
+8/25/25:
+    4 hours: 
+        added light/dark theme
+        undo button and keybind
+        back keybind
+        add preferences section to settings menu
+        Add Card Creation section to settings with Other Answers Acceptance, Max Other Answer Count, Depth, Threads, Hash (MB) and defaults for each
+        Buttons for Stats, Manual Add, Auto Add, Collection and filler pages for the 3 of those that need them
+8/28/25:
+    3 hours:
+        Improved make-card.js script (removed other answers duplicates, added move sequence properly, assign cards to deck properly) and fixed resulting app bugs
+        add zoom
+        add edit page with ctrl+s to save edited card
+8/29/25:
+    1 hour:
+        added duplicate card check on adding
+        added depth calculation to card creation
+        removed Last field and added children and parents
+8/30/25:
+    2 hours:
+        added move highlight to review
+        lineup the show answer button with the review buttons on back
+        added feature to manually add cards (stockfish assisted or full manual)
+        make all pages width scale with the app width
+    1 hour:
+        add collection page
+        connect code to github for codex in vs code use
