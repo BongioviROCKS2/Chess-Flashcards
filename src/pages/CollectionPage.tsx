@@ -735,6 +735,7 @@ export default function CollectionPage() {
     background: 'transparent',
   };
   const rightBottomStyle: React.CSSProperties = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' };
+  const rightBottomScroll: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' };
 
   /* ============
      Render
@@ -932,8 +933,8 @@ export default function CollectionPage() {
             {!selectedCard || !draft ? (
               <div style={{ padding: 12, opacity: 0.7 }}>Select a card to view and edit its details.</div>
             ) : (
-              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                <div className="card grid" style={{ gap: 12, border: 0, background: 'transparent', boxShadow: 'none', padding: 12 }}>
+              <div style={rightBottomScroll}>
+                <div className="card grid" style={{ gap: 12, border: 0, background: 'transparent', boxShadow: 'none', padding: 12, minWidth: 720 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div className="sub" aria-live="polite" style={{ visibility: saved ? 'visible' : 'hidden' }}>
                       Saved
