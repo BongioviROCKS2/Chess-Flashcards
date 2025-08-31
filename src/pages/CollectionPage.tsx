@@ -734,8 +734,8 @@ export default function CollectionPage() {
     borderBottom: '1px solid var(--border, #333)',
     background: 'transparent',
   };
-  const rightBottomStyle: React.CSSProperties = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' };
-  const rightBottomScroll: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' };
+  const rightBottomStyle: React.CSSProperties = { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflowX: 'auto', overflowY: 'auto' };
+  const rightBottomScroll: React.CSSProperties = { flex: 1, minHeight: 0 };
 
   /* ============
      Render
