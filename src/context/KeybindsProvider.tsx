@@ -181,3 +181,15 @@ export function useKeybinds() {
 export function makeKeyStringFromEvent(e: KeyboardEvent): string {
   return eventToKeyString(e);
 }
+
+// Helper: turn current binds for an action into a compact label like "A or B"
+export function formatActionKeys(binds: KeybindMap, action: KeyAction): string {
+  try {
+    const pair = binds[action] || ['', ''];
+    const [a, b] = pair;
+    const both = [a, b].filter(Boolean).join(' or ');
+    return both || '';
+  } catch {
+    return '';
+  }
+}

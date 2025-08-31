@@ -46,3 +46,29 @@ export function getDescendantDeckIds(parentId: string): string[] {
   walk(parentId);
   return out;
 }
+
+// Build breadcrumb of names from root to the given deck id.
+export function getDeckPathNames(id?: string | null): string[] {
+  if (!id) return [];
+  const path: string[] = [];
+  let cur = getDeckById(id);
+  while (cur) {
+    path.unshift(cur.name);
+    if (!cur.parentId) break;
+    cur = getDeckById(cur.parentId);
+  }
+  return path;
+}
+
+// Build breadcrumb of Decks (root..leaf) for a given deck id.
+export function getDeckPath(id?: string | null): Deck[] {
+  if (!id) return [];
+  const path: Deck[] = [];
+  let cur = getDeckById(id);
+  while (cur) {
+    path.unshift(cur);
+    if (!cur.parentId) break;
+    cur = getDeckById(cur.parentId);
+  }
+  return path;
+}

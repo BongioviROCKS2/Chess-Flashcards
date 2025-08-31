@@ -3,6 +3,7 @@ import Board from './Board';
 import { Chess } from 'chess.js';
 import './boardplayer.css'; // nav button styles
 import { useBoardKeybinds } from '../hooks/useBoardKeybinds';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -84,6 +85,10 @@ function Icon({ name }: { name: 'first' | 'prev' | 'next' | 'last' }) {
 
 export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
   const { size = 360, startAt = 'last', orientation = 'white', showMoveLabel = true } = props;
+  const { binds } = useKeybinds();
+  const keysFor = useCallback((action: 'board.first'|'board.prev'|'board.next'|'board.last'): string => {
+    return formatActionKeys(binds, action as any);
+  }, [binds]);
 
   const { frames, lastMoves } = useMemo(() => {
     // Returns both frames[] and lastMoves[] (per-frame last move)
@@ -194,7 +199,7 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
           className="btn-icon"
           disabled={atStart}
           onClick={goFirst}
-          title="First"
+          title={`First${keysFor('board.first') ? ` (${keysFor('board.first')})` : ''}`}
           aria-label="First"
         >
           <Icon name="first" />
@@ -204,7 +209,7 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
           className="btn-icon"
           disabled={atStart}
           onClick={goPrev}
-          title="Previous"
+          title={`Previous${keysFor('board.prev') ? ` (${keysFor('board.prev')})` : ''}`}
           aria-label="Previous"
         >
           <Icon name="prev" />
@@ -216,7 +221,7 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
           className="btn-icon"
           disabled={atEnd}
           onClick={goNext}
-          title="Next"
+          title={`Next${keysFor('board.next') ? ` (${keysFor('board.next')})` : ''}`}
           aria-label="Next"
         >
           <Icon name="next" />
@@ -226,7 +231,7 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
           className="btn-icon"
           disabled={atEnd}
           onClick={goLast}
-          title="Last"
+          title={`Last${keysFor('board.last') ? ` (${keysFor('board.last')})` : ''}`}
           aria-label="Last"
         >
           <Icon name="last" />

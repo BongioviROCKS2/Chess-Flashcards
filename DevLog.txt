@@ -42,5 +42,6 @@
         fixed the review persistency when a previously reviewed card becomes the new highest priority review
         add export collection to collection page
         add setting to save chess.com and lichess username
-        add ability to hove over buttons to see the keybind
+        add ability to hover over buttons to see the keybind
         add flip board button with keybind to review
+        review title should say full deck name (ex. Openings/White/Other) for that card, not just the deepest subdeck

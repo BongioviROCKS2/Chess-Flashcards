@@ -5,6 +5,7 @@ import cardsRaw from '../data/cards.json?raw';
 import { Chess } from 'chess.js';
 import BoardPlayer from '../components/BoardPlayer';
 import { useBackKeybind } from '../hooks/useBackKeybind';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import {
   Deck,
   getRootDecks,
@@ -242,6 +243,8 @@ export default function CollectionPage() {
   const navigate = useNavigate();
   const goBack = () => navigate('/');
   useBackKeybind(goBack, true);
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   const [allCards, setAllCards] = useState<Card[]>(() => safeParseCards(cardsRaw));
 
@@ -767,7 +770,7 @@ export default function CollectionPage() {
           >
             Export
           </button>
-          <button className="button secondary" onClick={goBack}>Back</button>
+          <button className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
         </div>
       </div>
 

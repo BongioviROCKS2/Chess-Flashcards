@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useBackKeybind } from '../hooks/useBackKeybind';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import type { Card } from '../data/types';
 
 declare global {
@@ -225,7 +226,7 @@ export default function EditCardPage() {
         <div className="card grid">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ margin: 0 }}>Edit Card</h2>
-            <button className="button secondary" onClick={goBack}>Back</button>
+            <button className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
           </div>
           <div className="sub">{error ? `Error: ${error}` : 'Loading…'}</div>
         </div>
@@ -456,3 +457,5 @@ export default function EditCardPage() {
     </div>
   );
 }
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');

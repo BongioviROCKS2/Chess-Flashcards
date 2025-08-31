@@ -1,17 +1,25 @@
+Add review count remaining to top of review page
 create the deck manage page for various deck-specific settings
     add ability to export individual decks from the deck manage page
 remove formatting bugs on collection page
 improve stats page to include more review stats, including one like what the Anki app has
 use chess.com username to scan all historical games by that user for auto add card creation
-    if the games have been previously scanned, log them so they do not get scanned on the next auto add
-review title should say full deck name (ex. Openings/White/Other) for that card, not just the deepest subdeck
-make sure keybind to flip board button in review is functional
-Make it so the review buttons can be hovered over to see the keybind
-
-Future:
-add a field to track sibling answers to minimize differences
+    cards should be created using the following criteria for scanning a game:
+        1. check if the game has been previously scanned
+        2a. if the game has been previously scanned, skip that game. Load the next game to be scanned and revert to step 1.
+        2b. if the game has not been previously scanned, begin with the first move of a game and proceed to step 3
+        3. check if that position exists in cards.json
+        4a. if the position exists in cards.json, no need to analyze the position. Go to step 5
+        4b. if the position does not exist in cards.json, run make-card on that position, then go to step 5
+        5. check what move the user played when in that position in that game.
+        6a. if in the game being scanned the user played the move that stockfish deemed as best, continue to step 7.
+        6b. if in the game being scanned the user did not play the move that stockfish deemed as best, move to the next game that the user played and revert to step 1. Repeat until no games are left to scan.
+        7. add the user's move and the opponent's move to the review pgn for a new card to be added, then revert to step 2 to create that next card.
+Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, etc.)
 add/remove items from the file,edit,view,window,help bar on tooltips
     ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)
+add a field to track sibling answers to minimize differences.
+    it should be preferred that an answer that meets the "other answer" criteria is selected if it is the answer on a sibling card
 cleanup files that aren't needed
-Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, etc.)
 push changes to github
+convert application to run on an iphone

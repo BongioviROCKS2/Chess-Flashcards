@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettings } from '../state/settings';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import React, { useEffect, useMemo, useRef } from 'react';
 
 type CardgenConfig = {
@@ -22,6 +23,8 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { settings, update } = useSettings();
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   // ---- Save-on-exit for Card Creation config ----
   const currentCfg: CardgenConfig = useMemo(
@@ -170,7 +173,7 @@ export default function SettingsPage() {
       <div className="card grid">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>Settings</h2>
-          <button className="button secondary" onClick={handleBack}>Back</button>
+          <button className="button secondary" onClick={handleBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
         </div>
 
         <div className="grid" style={{ gap: 14 }}>

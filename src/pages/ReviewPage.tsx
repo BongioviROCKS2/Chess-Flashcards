@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { getDeckById } from '../decks';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { getDeckById, getDeckPath, getDeckPathNames } from '../decks';
 import { getDueCardsForDeck, getCardDue, allCards } from '../data/cardStore';
 import { useEffect, useMemo, useState } from 'react';
 import { useKeybinds, KeyAction } from '../context/KeybindsProvider';
@@ -79,12 +79,11 @@ export default function ReviewPage() {
   const [flipped, setFlipped] = useState(false);
   const current = useMemo(() => (currentId ? (allCards().find(c => c.id === currentId) ?? null) : null), [currentId]);
 
-  const title = useMemo(() => {
-    // Prefer the actual card's deck name if available; otherwise fallback to route deck
-    const cardDeckName = current ? (getDeckById(current.deck)?.name || current.deck) : null;
-    if (cardDeckName) return cardDeckName;
-    return deck ? deck.name : deckId;
-  }, [current, deck, deckId]);
+  const deckPathParts = useMemo(() => {
+    const idFor = current?.deck || deckId || null;
+    return getDeckPath(idFor || undefined);
+  }, [current, deckId]);
+  const title = useMemo(() => (deckPathParts.length ? deckPathParts[deckPathParts.length - 1].name : (deck ? deck.name : deckId)), [deckPathParts, deck, deckId]);
 
   // Rebuild queue whenever deck changes or refresh is requested
   useEffect(() => {
@@ -216,18 +215,31 @@ export default function ReviewPage() {
   useBackKeybind(handleBack, true);
 
   // --- Helper: keybind tooltips ---
-  function keysFor(action: KeyAction): string {
-    const pair = binds[action] || ['', ''];
-    const [a, b] = pair;
-    const both = [a, b].filter(Boolean).join(' or ');
-    return both || '';
-  }
+  const keysFor = (action: KeyAction) => {
+    try {
+      const pair = binds[action] || ['', ''];
+      const both = [pair[0], pair[1]].filter(Boolean).join(' or ');
+      return both || '';
+    } catch { return ''; }
+  };
 
   return (
     <div className="container">
       <div className="card grid">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0 }}>{title}</h2>
+          <div>
+            <h2 style={{ margin: 0 }}>{title}</h2>
+            {deckPathParts.length > 0 && (
+              <div className="sub" style={{ marginTop: 2 }}>
+                {deckPathParts.map((d, i) => (
+                  <span key={d.id}>
+                    {i > 0 ? ' / ' : ''}
+                    <Link to={`/review/${d.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>{d.name}</Link>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               className="button"
@@ -238,7 +250,7 @@ export default function ReviewPage() {
               Undo
             </button>
             <button className="button" onClick={handleFlip} title={`Flip board${keysFor('board.flip') ? ` (${keysFor('board.flip')})` : ''}`}>Flip</button>
-            <button className="button secondary" onClick={handleBack} title="Back (Backspace)">Back</button>
+            <button className="button secondary" onClick={handleBack} title={`Back${keysFor('app.back') ? ` (${keysFor('app.back')})` : ''}`}>Back</button>
           </div>
         </div>
 

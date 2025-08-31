@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBackKeybind } from '../hooks/useBackKeybind';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import { useSettings } from '../state/settings';
 import type { Card } from '../data/types';
 
@@ -76,6 +77,8 @@ const clampInt = (v: number, min: number, max?: number) => {
 export default function ManualAddPage() {
   const navigate = useNavigate();
   useBackKeybind(() => navigate(-1), true);
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   const { settings } = useSettings();
 
@@ -320,7 +323,7 @@ export default function ManualAddPage() {
           <h2 style={{ margin: 0 }}>Manual Add</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             {saved && <div className="sub" aria-live="polite">Saved</div>}
-            <button className="button secondary" onClick={goBack}>Back</button>
+            <button className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
             {mode === 'full' && (
               <button className="button" onClick={handleManualSave} disabled={saving} title="Create (Ctrl+S)">
                 {saving ? 'Creating…' : 'Create'}

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useBackKeybind } from '../hooks/useBackKeybind';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import React, { useMemo, useState } from 'react';
 
 type Grade = 'again' | 'hard' | 'good' | 'easy';
@@ -23,6 +24,8 @@ export default function StatsPage() {
   const navigate = useNavigate();
   const onBack = () => navigate(-1);
   useBackKeybind(onBack, true);
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   const [_, setBump] = useState(0);
   const bump = () => setBump(v => v + 1);
@@ -52,7 +55,7 @@ export default function StatsPage() {
           <h2 style={{ margin: 0 }}>Stats</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             <button className="button secondary" onClick={clear} title="Clear review log">Clear</button>
-            <button className="button secondary" onClick={onBack}>Back</button>
+            <button className="button secondary" onClick={onBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
           </div>
         </div>
 

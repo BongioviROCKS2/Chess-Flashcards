@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useKeybinds } from '../context/KeybindsProvider';
+import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import { useBackKeybind } from '../hooks/useBackKeybind';
 
 type Row = {
@@ -69,6 +69,7 @@ export default function KeybindsPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { binds, setBinding, resetDefaults } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   const [capturing, setCapturing] = useState<null | { action: Row['action']; slot: 0 | 1 }>(null);
 
@@ -182,7 +183,7 @@ export default function KeybindsPage() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>Keybinds</h2>
-          <button className="button secondary" onClick={handleBack}>Back</button>
+          <button className="button secondary" onClick={handleBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
         </div>
 
         {/* NAVIGATION */}
