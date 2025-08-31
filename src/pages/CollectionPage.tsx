@@ -243,6 +243,17 @@ export default function CollectionPage() {
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [columns, setColumns] = useState<ColumnKey[]>(DEFAULT_COLUMNS);
   const [query, setQuery] = useState('');
+  // Keep deck tree expand/collapse stable across re-renders (e.g., resizing)
+  const [openDeckIds, setOpenDeckIds] = useState<Set<string>>(() => new Set(getRootDecks().map(d => d.id)));
+  const isDeckOpen = (id: string) => openDeckIds.has(id);
+  const toggleDeckOpen = (id: string, open?: boolean) => {
+    setOpenDeckIds(prev => {
+      const next = new Set(prev);
+      const willOpen = open === undefined ? !next.has(id) : open;
+      if (willOpen) next.add(id); else next.delete(id);
+      return next;
+    });
+  };
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedCard = useMemo(
@@ -496,7 +507,7 @@ export default function CollectionPage() {
   }) {
     const children = getChildrenOf(node.id);
     const hasKids = children.length > 0;
-    const [open, setOpen] = useState(depth < 1); // open root by default
+    const open = isDeckOpen(node.id);
     const checked = filters.deckIds.has(node.id);
 
     function onToggle(checkedNow: boolean) {
@@ -515,7 +526,7 @@ export default function CollectionPage() {
             <button
               className="button secondary"
               style={{ padding: '0 6px', height: 20, lineHeight: '18px' }}
-              onClick={() => setOpen(o => !o)}
+              onClick={() => toggleDeckOpen(node.id)}
               title={open ? 'Collapse' : 'Expand'}
             >
               {open ? '▾' : '▸'}
