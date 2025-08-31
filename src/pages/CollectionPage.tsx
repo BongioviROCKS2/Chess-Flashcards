@@ -700,6 +700,7 @@ export default function CollectionPage() {
   };
   const leftPaneStyle: React.CSSProperties = { ...paneCommon, width: leftW, flex: '0 0 auto', borderLeft: '1px solid var(--border, #333)' };
   const centerPaneStyle: React.CSSProperties = { ...paneCommon, flex: 1 };
+  const centerScroll: React.CSSProperties = { flex: 1, minHeight: 0, overflowX: 'auto', overflowY: 'auto' };
   const rightPaneStyle: React.CSSProperties = { ...paneCommon, width: rightW, flex: '0 0 auto' };
   const vSplitter: React.CSSProperties = {
     width: 6,
@@ -822,50 +823,52 @@ export default function CollectionPage() {
             <div style={{ opacity: 0.7, whiteSpace: 'nowrap' }}>{filtered.length} / {allCards.length}</div>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: columns.map(c => `${ALL_COLUMNS[c].width ?? 200}px`).join(' '),
-              borderBottom: '1px solid var(--border, #333)',
-              userSelect: 'none',
-              fontWeight: 600,
-              position: 'sticky',
-              top: 48,
-              background: 'var(--bg, #0b0f12)',
-              zIndex: 1,
-            }}
-            onContextMenu={openColumnPicker}
-            title="Right-click to choose columns"
-          >
-            {columns.map((c) => (
-              <div key={c} style={{ padding: '8px 10px' }}>{ALL_COLUMNS[c].label}</div>
-            ))}
-          </div>
+          <div style={centerScroll}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: columns.map(c => `${ALL_COLUMNS[c].width ?? 200}px`).join(' '),
+                borderBottom: '1px solid var(--border, #333)',
+                userSelect: 'none',
+                fontWeight: 600,
+                position: 'sticky',
+                top: 0,
+                background: 'var(--bg, #0b0f12)',
+                zIndex: 1,
+              }}
+              onContextMenu={openColumnPicker}
+              title="Right-click to choose columns"
+            >
+              {columns.map((c) => (
+                <div key={c} style={{ padding: '8px 10px' }}>{ALL_COLUMNS[c].label}</div>
+              ))}
+            </div>
 
-          <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-            {filtered.map(c => {
-              const selected = c.id === selectedId;
-              return (
-                <div
-                  key={c.id}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: columns.map(col => `${ALL_COLUMNS[col].width ?? 200}px`).join(' '),
-                    borderBottom: '1px solid var(--border, #222)',
-                    background: selected ? 'rgba(100,150,255,0.12)' : 'transparent',
-                    cursor: 'pointer',
-                  }}
-                  onClick={() => setSelectedId(c.id!)}
-                  onDoubleClick={() => setSelectedId(c.id!)}
-                >
-                  {columns.map(col => (
-                    <div key={col} style={{ padding: '6px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {renderCell(col, c)}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+            <div>
+              {filtered.map(c => {
+                const selected = c.id === selectedId;
+                return (
+                  <div
+                    key={c.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: columns.map(col => `${ALL_COLUMNS[col].width ?? 200}px`).join(' '),
+                      borderBottom: '1px solid var(--border, #222)',
+                      background: selected ? 'rgba(100,150,255,0.12)' : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => setSelectedId(c.id!)}
+                    onDoubleClick={() => setSelectedId(c.id!)}
+                  >
+                    {columns.map(col => (
+                      <div key={col} style={{ padding: '6px 10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {renderCell(col, c)}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {pickerOpen && (
