@@ -23,6 +23,41 @@ const CONFIG_PATH = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
 function createWindow() {
   console.log('[main] preload path:', PRELOAD, 'exists=', fs.existsSync(PRELOAD));
 
+  // Resolve a platform-appropriate icon for the app window (title bar)
+  const getIconPath = () => {
+    const rootAssets = path.resolve(ROOT, 'assets');
+    const dirAssets  = path.resolve(__dirname, '..', 'assets');
+
+    /** Build candidate paths in priority order and return the first that exists */
+    const pick = (candidates) => candidates.find(p => fs.existsSync(p));
+
+    if (process.platform === 'win32') {
+      return pick([
+        path.join(rootAssets, 'logo.ico'),
+        path.join(dirAssets,  'logo.ico'),
+      ]);
+    }
+    if (process.platform === 'linux') {
+      return pick([
+        path.join(rootAssets, 'icons', 'png', 'logo-512x512.png'),
+        path.join(rootAssets, 'icons', 'png', 'logo-256x256.png'),
+        path.join(dirAssets,  'icons', 'png', 'logo-512x512.png'),
+        path.join(dirAssets,  'icons', 'png', 'logo-256x256.png'),
+        path.join(rootAssets, 'logo.png'),
+        path.join(dirAssets,  'logo.png'),
+      ]);
+    }
+    // On macOS the BrowserWindow icon is generally ignored, but set anyway
+    return pick([
+      path.join(rootAssets, 'logo.png'),
+      path.join(dirAssets,  'logo.png'),
+    ]);
+  };
+
+  const ICON = getIconPath();
+  if (ICON) console.log('[main] using window icon:', ICON);
+  else console.warn('[main] no window icon found in assets');
+
   const win = new BrowserWindow({
     width: 1100,
     height: 800,
@@ -33,6 +68,7 @@ function createWindow() {
       sandbox: false,
     },
     show: true,
+    icon: ICON,
   });
 
   if (isDev) {
