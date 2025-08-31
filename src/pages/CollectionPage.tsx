@@ -275,6 +275,35 @@ export default function CollectionPage() {
   useEffect(() => localStorage.setItem('collection.rightW', String(rightW)), [rightW]);
   useEffect(() => localStorage.setItem('collection.rightTopH', String(rightTopH)), [rightTopH]);
 
+  // Keep pane sizes within container bounds on window resize
+  useEffect(() => {
+    const enforceBounds = () => {
+      const containerW = bodyRef.current?.clientWidth ?? window.innerWidth;
+      const minLeft = 180;
+      const minCenter = 300;
+      const minRight = 360;
+      const splitters = 12; // two vertical splitters
+
+      // Adjust left/right if they no longer fit
+      const maxLeft = Math.max(minLeft, containerW - rightW - minCenter - splitters);
+      if (leftW > maxLeft) setLeftW(maxLeft);
+
+      const maxRight = Math.max(minRight, containerW - (leftW) - minCenter - splitters);
+      if (rightW > maxRight) setRightW(maxRight);
+
+      const containerH = rightPaneRef.current?.clientHeight ?? (bodyRef.current?.clientHeight ?? window.innerHeight);
+      const minTop = 160;
+      const minBottom = 240;
+      const splitterH = 6;
+      const maxTop = Math.max(minTop, containerH - splitterH - minBottom);
+      if (rightTopH > maxTop) setRightTopH(maxTop);
+    };
+    // Run once and on resize
+    enforceBounds();
+    window.addEventListener('resize', enforceBounds);
+    return () => window.removeEventListener('resize', enforceBounds);
+  }, [leftW, rightW, rightTopH]);
+
   /* ============
      Column picker (single)
      ============ */
@@ -380,6 +409,9 @@ export default function CollectionPage() {
      Resizers
      ============ */
 
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+  const rightPaneRef = useRef<HTMLDivElement | null>(null);
+
   type DragKind = 'left' | 'right' | 'rightInner';
   const dragRef = useRef<{
     kind: DragKind;
@@ -388,10 +420,14 @@ export default function CollectionPage() {
     startLeft: number;
     startRight: number;
     startRightTop: number;
+    containerW: number;
+    containerH: number;
   } | null>(null);
 
   function onStartDrag(kind: DragKind, e: React.MouseEvent) {
     e.preventDefault();
+    const containerW = bodyRef.current?.clientWidth ?? window.innerWidth;
+    const containerH = rightPaneRef.current?.clientHeight ?? (bodyRef.current?.clientHeight ?? window.innerHeight);
     dragRef.current = {
       kind,
       startX: e.clientX,
@@ -399,6 +435,8 @@ export default function CollectionPage() {
       startLeft: leftW,
       startRight: rightW,
       startRightTop: rightTopH,
+      containerW,
+      containerH,
     };
     window.addEventListener('mousemove', onDrag);
     window.addEventListener('mouseup', onStopDrag);
@@ -412,15 +450,27 @@ export default function CollectionPage() {
 
     if (st.kind === 'left') {
       const delta = e.clientX - st.startX;
-      const next = Math.max(180, Math.min(st.startLeft + delta, window.innerWidth - 300 - st.startRight));
+      const minLeft = 180;
+      const minCenter = 300;
+      const splitters = 12; // two vertical splitters
+      const maxLeft = Math.max(minLeft, st.containerW - st.startRight - minCenter - splitters);
+      const next = Math.max(minLeft, Math.min(st.startLeft + delta, maxLeft));
       setLeftW(next);
     } else if (st.kind === 'right') {
       const delta = st.startX - e.clientX;
-      const next = Math.max(360, Math.min(st.startRight + delta, window.innerWidth - 300 - leftW));
+      const minRight = 360;
+      const minCenter = 300;
+      const splitters = 12; // two vertical splitters
+      const maxRight = Math.max(minRight, st.containerW - leftW - minCenter - splitters);
+      const next = Math.max(minRight, Math.min(st.startRight + delta, maxRight));
       setRightW(next);
     } else if (st.kind === 'rightInner') {
       const deltaY = e.clientY - st.startY;
-      const next = Math.max(240, Math.min(st.startRightTop + deltaY, window.innerHeight - 260));
+      const minTop = 160;
+      const minBottom = 240;
+      const splitterH = 6;
+      const maxTop = Math.max(minTop, st.containerH - splitterH - minBottom);
+      const next = Math.max(minTop, Math.min(st.startRightTop + deltaY, maxTop));
       setRightTopH(next);
     }
   }
@@ -637,11 +687,12 @@ export default function CollectionPage() {
     flexDirection: 'column',
     minWidth: 0,
   };
-  const leftPaneStyle: React.CSSProperties = { ...paneCommon, width: leftW, borderLeft: '1px solid var(--border, #333)' };
+  const leftPaneStyle: React.CSSProperties = { ...paneCommon, width: leftW, flex: '0 0 auto', borderLeft: '1px solid var(--border, #333)' };
   const centerPaneStyle: React.CSSProperties = { ...paneCommon, flex: 1 };
-  const rightPaneStyle: React.CSSProperties = { ...paneCommon, width: rightW };
+  const rightPaneStyle: React.CSSProperties = { ...paneCommon, width: rightW, flex: '0 0 auto' };
   const vSplitter: React.CSSProperties = {
     width: 6,
+    flex: '0 0 6px',
     cursor: 'col-resize',
     background: 'transparent',
     borderRight: '1px solid var(--border, #333)',
@@ -658,6 +709,7 @@ export default function CollectionPage() {
   const rightTopStyle: React.CSSProperties = {
     height: rightTopH,
     minHeight: 160,
+    flex: '0 0 auto',
     borderBottom: '1px solid var(--border, #333)',
     display: 'flex',
     flexDirection: 'column',
@@ -665,6 +717,7 @@ export default function CollectionPage() {
   };
   const hSplitter: React.CSSProperties = {
     height: 6,
+    flex: '0 0 6px',
     cursor: 'row-resize',
     borderBottom: '1px solid var(--border, #333)',
     background: 'transparent',
@@ -682,7 +735,7 @@ export default function CollectionPage() {
         <button className="button secondary" onClick={goBack}>Back</button>
       </div>
 
-      <div style={bodyRow}>
+      <div style={bodyRow} ref={bodyRef}>
         {/* LEFT: Filters */}
         <div style={leftPaneStyle}>
           <div style={sectionTitle}>Filters</div>
@@ -841,7 +894,7 @@ export default function CollectionPage() {
         <div style={vSplitter} onMouseDown={(e) => onStartDrag('right', e)} />
 
         {/* RIGHT: Preview + Editor */}
-        <div style={rightPaneStyle}>
+        <div style={rightPaneStyle} ref={rightPaneRef}>
           <div style={rightTopStyle}>
             <div style={sectionTitle}>Preview</div>
             <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 8 }}>
