@@ -718,19 +718,19 @@ export default function CollectionPage() {
                     <div style={{ fontWeight: 700, marginTop: 4 }}>Fields</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
                       <div>Move Sequence (PGN)</div>
-                      <textarea value={draft.fields.moveSequence} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, moveSequence: e.currentTarget.value } }))} rows={3} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%', minWidth: 160 }} />
+                      <textarea rows={2} value={draft.fields.moveSequence} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, moveSequence: e.currentTarget.value } }))} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, alignItems: 'center' }}>
                       <div>Review FEN</div>
-                      <input type="text" value={draft.fields.fen} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, fen: e.currentTarget.value } }))} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', minWidth: 120, width: '100%' }} />
+                      <input type="text" value={draft.fields.fen} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, fen: e.currentTarget.value } }))} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, alignItems: 'center' }}>
                       <div>Answer (SAN)</div>
-                      <input type="text" value={draft.fields.answer} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, answer: e.currentTarget.value } }))} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', minWidth: 120, width: '100%' }} />
+                      <input type="text" value={draft.fields.answer} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, answer: e.currentTarget.value } }))} style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, alignItems: 'center' }}>
                       <div>Answer FEN</div>
-                      <input type="text" value={draft.fields.answerFen} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, answerFen: e.currentTarget.value } }))} placeholder="optional" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', minWidth: 120, width: '100%' }} />
+                      <input type="text" value={draft.fields.answerFen} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, answerFen: e.currentTarget.value } }))} placeholder="optional" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 1fr', gap: 10, alignItems: 'center' }}>
                       <div>Eval</div>
@@ -738,29 +738,29 @@ export default function CollectionPage() {
                         <option value="cp">cp</option>
                         <option value="mate">mate</option>
                       </select>
-                      <input type="text" inputMode="numeric" value={draft.fields.evalValue} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, evalValue: e.currentTarget.value } }))} placeholder="value" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: 45, minWidth: 45 }} />
-                      <input type="text" inputMode="numeric" value={draft.fields.evalDepth} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, evalDepth: e.currentTarget.value } }))} placeholder="depth" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: 35, minWidth: 35 }} />
+                      <input type="text" inputMode="numeric" value={draft.fields.evalValue} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, evalValue: e.currentTarget.value } }))} placeholder="value" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', minWidth: '70px' }} />
+                      <input type="text" inputMode="numeric" value={draft.fields.evalDepth} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, evalDepth: e.currentTarget.value } }))} placeholder="depth" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', minWidth: '70px' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
                       <div>Example Line (SAN)</div>
-                      <textarea rows={2} value={draft.fields.exampleLine} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, exampleLine: e.currentTarget.value } }))} placeholder="e4 e5 Nf3 Nc6 ..." style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%', minWidth: 160 }} />
+                      <textarea rows={2} value={draft.fields.exampleLine} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, exampleLine: e.currentTarget.value } }))} placeholder="e4 e5 Nf3 Nc6 ..." style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
                       <div>Other Answers (SAN)</div>
-                      <textarea rows={2} value={draft.fields.otherAnswers} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, otherAnswers: e.currentTarget.value } }))} placeholder="Nf3 c4 g3" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%', minWidth: 160 }} />
+                      <textarea rows={2} value={draft.fields.otherAnswers} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, otherAnswers: e.currentTarget.value } }))} placeholder="Nf3 c4 g3" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
                       <div>Sibling Answers (SAN)</div>
-                      <textarea rows={2} value={draft.fields.siblingAnswers} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, siblingAnswers: e.currentTarget.value } }))} placeholder="moves equivalent to best" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%', minWidth: 160 }} />
+                      <textarea rows={2} value={draft.fields.siblingAnswers} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, siblingAnswers: e.currentTarget.value } }))} placeholder="moves equivalent to best" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
                     </div>
                     <div style={{ fontWeight: 700 }}>Lineage</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, alignItems: 'center' }}>
                       <div>depth</div>
-                      <input type="text" inputMode="numeric" value={draft.fields.depth} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, depth: e.currentTarget.value } }))} placeholder="required int (move number)" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
+                      <input type="text" inputMode="numeric" value={draft.fields.depth} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, depth: e.currentTarget.value } }))} placeholder="required int (move number)" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }} />
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10, alignItems: 'center' }}>
                       <div>parent</div>
-                      <input type="text" value={draft.fields.parent} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, parent: e.currentTarget.value } }))} placeholder="optional (card id)" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', width: '100%' }} />
+                      <input type="text" value={draft.fields.parent} onChange={e => setDraft(p => ({ ...p!, fields: { ...p!.fields, parent: e.currentTarget.value } }))} placeholder="optional (card id)" style={{ background: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }} />
                     </div>
                   </div>
                 )}

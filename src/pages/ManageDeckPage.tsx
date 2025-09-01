@@ -40,12 +40,17 @@ export default function ManageDeckPage() {
     return { total, newCnt, due, overdue };
   }, [cards, now]);
 
-  const exportDeck = async (withDesc: boolean) => {
+  const exportDeck = async () => {
     const base = path.map(p => p.name).join('-') || 'deck';
-    const selectedIds = withDesc ? ids : (deckId ? [deckId] : []);
-    const arr = allCards().filter(c => selectedIds.includes(c.deck));
-    const res = await (window as any).cards?.exportJsonToDownloads?.(arr, base + (withDesc ? '-with-desc' : ''));
-    if (!res?.ok) alert('Export failed: ' + (res?.message || 'Unknown'));
+    // Always include cards from this deck and all its descendants
+    const arr = cards;
+    const res = await (window as any).cards?.exportJsonToDownloads?.(arr, base);
+    if (res?.ok) {
+      const loc = res?.path ? `\nSaved to: ${res.path}` : '';
+      alert(`Export complete.${loc}`);
+    } else {
+      alert('Export failed: ' + (res?.message || 'Unknown'));
+    }
   };
 
   if (!deck) {
@@ -82,12 +87,10 @@ export default function ManageDeckPage() {
           </div>
 
           <div className="row" style={{ display: 'flex', gap: 12 }}>
-            <button className="button" onClick={() => exportDeck(false)}>Export this deck</button>
-            <button className="button" onClick={() => exportDeck(true)}>Export deck + descendants</button>
+            <button className="button" onClick={() => exportDeck()}>Export this deck</button>
           </div>
         </div>
       </div>
     </div>
   );
 }
-

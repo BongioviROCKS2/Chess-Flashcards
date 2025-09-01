@@ -45,3 +45,9 @@
         add ability to hover over buttons to see the keybind
         add flip board button with keybind to review
         review title should say full deck name (ex. Openings/White/Other) for that card, not just the deepest subdeck
+        Add review count remaining to top of review page
+        create the deck manage page for various deck-specific settings
+8/31/25:
+    4 hours:
+        cleanup the collection page formatting
+        add ability to export individual decks from the deck manage page

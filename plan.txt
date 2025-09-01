@@ -1,7 +1,4 @@
-Add review count remaining to top of review page
-create the deck manage page for various deck-specific settings
-    add ability to export individual decks from the deck manage page
-    Allow custom review limits per deck per card type (new, mature, leech, etc.)
+Allow custom review limits per deck per card type (new, mature, leech, etc.) to deck manage page
 improve stats page to include more review stats, including one like what the Anki app has
 use chess.com username to scan all historical games by that user for auto add card creation
     cards should be created using the following criteria for scanning a game:
@@ -23,6 +20,7 @@ Implement other flashcard review features from within the Anki app to this app (
 add/remove items from the file,edit,view,window,help bar on tooltips
     ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)
 add a field to track sibling answers to minimize differences.
+    (siblings are cards that share a parent. so the previous review position in the move sequence is the same, but the opponent played a different response after it, thus creating a different card)
     it should be preferred that an answer that meets the "other answer" criteria is selected if it is the answer on a sibling card
 cleanup files that aren't needed
 add feature to import cards.json file from user
