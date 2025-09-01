@@ -1,4 +1,3 @@
-remove formatting bugs on collection page
 Add review count remaining to top of review page
 create the deck manage page for various deck-specific settings
     add ability to export individual decks from the deck manage page
