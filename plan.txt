@@ -1,7 +1,8 @@
+remove formatting bugs on collection page
 Add review count remaining to top of review page
 create the deck manage page for various deck-specific settings
     add ability to export individual decks from the deck manage page
-remove formatting bugs on collection page
+    Allow custom review limits per deck per card type (new, mature, leech, etc.)
 improve stats page to include more review stats, including one like what the Anki app has
 use chess.com username to scan all historical games by that user for auto add card creation
     cards should be created using the following criteria for scanning a game:
@@ -15,11 +16,26 @@ use chess.com username to scan all historical games by that user for auto add ca
         6a. if in the game being scanned the user played the move that stockfish deemed as best, continue to step 7.
         6b. if in the game being scanned the user did not play the move that stockfish deemed as best, move to the next game that the user played and revert to step 1. Repeat until no games are left to scan.
         7. add the user's move and the opponent's move to the review pgn for a new card to be added, then revert to step 2 to create that next card.
-Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, etc.)
+implement correct display order (oldest due date?)
+implement correct new card display order (child of longest interval parent?)
+improve scheduling (FSRS?)
+    allow customization to scheduling algorithm?
+Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, deck options, etc.)
 add/remove items from the file,edit,view,window,help bar on tooltips
     ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)
 add a field to track sibling answers to minimize differences.
     it should be preferred that an answer that meets the "other answer" criteria is selected if it is the answer on a sibling card
 cleanup files that aren't needed
-push changes to github
-convert application to run on an iphone
+add feature to import cards.json file from user
+Add daily opening game challenge
+    every day, a new sequence of theoretical opponent moves is chosen and one of the best moves is always expected as the answer
+    how many moves deep can you make it without messing up
+    best/other answers would both be accepted based based on 0.2 acceptance threshold and 20 possible lines max, but the game will always only continue via the user's best line (that way branches don't need to be calculated)
+    computer/opponent choice of line will be (seeded and) decided using weighted probability of normal player moves for first 3 moves, then random choice of best/other answers for each move that follows
+    pre-calculated moves will only go so deep (~30 moves?), but the user can use their machine to calculate further (then use their machine to share the answer with a server for others to use?)
+    log the line that was played with the date it was assigned for users to play previous day's lines
+    maybe implement a similar game for endgames and middle games
+    add a rating system based on performance in each game over time
+    Also track time to solve and add as a 4th dimension of rating (speed rating)
+    add as a discord game/activity
+convert application to run on an iphone/android

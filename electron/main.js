@@ -213,6 +213,24 @@ function registerIpc() {
     }
   });
 
+  // Export provided JSON array to Downloads
+  ipcMain.handle('cards:exportJsonToDownloads', async (_evt, payload) => {
+    try {
+      const cards = Array.isArray(payload?.cards) ? payload.cards : [];
+      const base = (payload?.name && String(payload.name).trim()) || 'chess-cards';
+      const dir = app.getPath('downloads');
+      const ts = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const name = `${base}-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}${pad(ts.getSeconds())}.json`;
+      const outPath = path.join(dir, name);
+      fs.writeFileSync(outPath, JSON.stringify(cards, null, 2) + '\n', 'utf-8');
+      return { ok: true, path: outPath };
+    } catch (e) {
+      console.error('[cards:exportJsonToDownloads] failed:', e);
+      return { ok: false, message: e?.message || 'Export failed' };
+    }
+  });
+
   // Update only the 'due' field of a card by id
   ipcMain.handle('cards:setDue', async (_evt, payload) => {
     try {
@@ -234,7 +252,7 @@ function registerIpc() {
     }
   });
 
-  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create, cards:setDue, cards:exportToDownloads');
+  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create, cards:setDue, cards:exportToDownloads, cards:exportJsonToDownloads');
 }
 
 app.whenReady().then(() => {

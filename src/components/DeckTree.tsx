@@ -46,7 +46,7 @@ export default function DeckTree({ rootId }: Props) {
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="button" onClick={() => navigate(`/review/${deck.id}`)}>Review</button>
               {/* Changed to primary style to match Review button */}
-              <button className="button" onClick={() => alert('Manage (coming soon)')}>Manage</button>
+              <button className="button" onClick={() => navigate(`/manage/${deck.id}`)}>Manage</button>
             </div>
           </div>
         </div>

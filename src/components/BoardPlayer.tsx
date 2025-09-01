@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import Board from './Board';
 import { Chess } from 'chess.js';
 import './boardplayer.css'; // nav button styles
@@ -36,6 +36,10 @@ type Base = {
   orientation?: 'white' | 'black';
   /** show the current move label under the board (default true) */
   showMoveLabel?: boolean;
+  /** optional custom label for the current index */
+  labelForIndex?: (idx: number, moveSan: string | null) => React.ReactNode;
+  /** notify external listeners when index changes */
+  onIndexChange?: (idx: number) => void;
 };
 
 export type BoardPlayerProps = (PgnMode | SanMode | FramesMode) & Base;
@@ -161,6 +165,8 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
   }, [props, frames, startAt]);
 
   const [idx, setIdx] = useState(initialIndex);
+  // notify on index mount + change
+  useEffect(() => { props.onIndexChange?.(idx); }, [idx]);
   const atStart = idx <= 0;
   const atEnd = idx >= frames.length - 1;
 
@@ -190,7 +196,9 @@ export default function BoardPlayer(props: BoardPlayerProps & WithFlip) {
       {/* Current move label */}
       {showMoveLabel && (
         <div className="bp-move sub" style={{ textAlign: 'center', marginTop: 6, minHeight: 18 }}>
-          {moveNow?.san ? `Move: ${moveNow.san}` : 'Initial position'}
+          {props.labelForIndex
+            ? (props.labelForIndex(idx, moveNow?.san ?? null) as any)
+            : (moveNow?.san ? `Move: ${moveNow.san}` : 'Initial position')}
         </div>
       )}
 

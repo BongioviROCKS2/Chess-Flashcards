@@ -240,7 +240,8 @@ export default function ReviewPage() {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <span className="sub" title="Cards remaining in this deck (incl. descendants)">{queueIds.length} remaining</span>
             <button
               className="button"
               onClick={performUndo}

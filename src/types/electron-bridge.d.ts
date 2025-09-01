@@ -30,6 +30,7 @@ declare global {
       create?: (card: any) => Promise<boolean>;
       setDue?: (id: string, due: string | 'new' | undefined) => Promise<boolean>;
       exportToDownloads?: () => Promise<{ ok: boolean; path?: string; message?: string }>;
+      exportJsonToDownloads?: (cards: any[], name?: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
     };
 
     zoom?: {

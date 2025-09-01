@@ -108,6 +108,8 @@ export default function EditCardPage() {
     else navigate('/');
   };
   useBackKeybind(goBack, true);
+  const { binds } = useKeybinds();
+  const backKeys = formatActionKeys(binds, 'app.back');
 
   // Load card if not provided via navigation state
   useEffect(() => {
@@ -457,5 +459,3 @@ export default function EditCardPage() {
     </div>
   );
 }
-  const { binds } = useKeybinds();
-  const backKeys = formatActionKeys(binds, 'app.back');

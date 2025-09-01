@@ -13,6 +13,7 @@ import StatsPage from './pages/StatsPage';
 import CollectionPage from './pages/CollectionPage';
 import ManualAddPage from './pages/ManualAddPage';
 import EditCardPage from './pages/EditCardPage'; // <-- NEW
+import ManageDeckPage from './pages/ManageDeckPage';
 import { useEffect } from 'react';
 
 declare global {
@@ -114,6 +115,18 @@ function useZoomShortcuts() {
 export default function App() {
   useZoomShortcuts();
 
+  // Keep a CSS var of the app header height for sticky page titles
+  useEffect(() => {
+    const updateVar = () => {
+      const header = document.querySelector('.header') as HTMLElement | null;
+      const h = header ? header.getBoundingClientRect().height : 0;
+      document.documentElement.style.setProperty('--app-header-offset', `${Math.round(h)}px`);
+    };
+    updateVar();
+    window.addEventListener('resize', updateVar);
+    return () => window.removeEventListener('resize', updateVar);
+  }, []);
+
   return (
     <SettingsProvider>
       <KeybindsProvider>
@@ -130,6 +143,7 @@ export default function App() {
                 <Route path="/collection" element={<CollectionPage />} />
                 <Route path="/manual-add" element={<ManualAddPage />} />
                 <Route path="/edit/:cardId" element={<EditCardPage />} /> {/* NEW */}
+                <Route path="/manage/:deckId" element={<ManageDeckPage />} />
               </Routes>
             </ErrorBoundary>
           </div>

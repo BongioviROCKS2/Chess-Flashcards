@@ -62,7 +62,7 @@ body {
 
 .header {
   padding: 16px 24px;
-  background: var(--header-bg);
+  background: var(--panel);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -80,12 +80,10 @@ body {
   display: flex;
   gap: 8px;
   z-index: 1000;
-  background: var(--header-bg);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 6px;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
   max-width: calc(100vw - 24px);
   overflow-x: auto;
   white-space: nowrap;
