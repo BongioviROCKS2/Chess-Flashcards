@@ -51,3 +51,6 @@
     4 hours:
         cleanup the collection page formatting
         add ability to export individual decks from the deck manage page
+9/2/25:
+    3 hours:
+        add details to manage deck page

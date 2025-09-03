@@ -1,6 +1,7 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getDeckById, getDeckPath, getDeckPathNames } from '../decks';
 import { getDueCardsForDeck, getCardDue, allCards } from '../data/cardStore';
+import { planQueueForDeck } from '../state/deckLimits';
 import { useEffect, useMemo, useState } from 'react';
 import { useKeybinds, KeyAction } from '../context/KeybindsProvider';
 import BoardPlayer from '../components/BoardPlayer';
@@ -73,8 +74,8 @@ export default function ReviewPage() {
   const [, setBump] = useState(0);
   const bump = () => setBump(v => v + 1);
 
-  const [queueIds, setQueueIds] = useState<string[]>(() => (deckId ? getDueCardsForDeck(deckId).map(c => c.id) : []));
-  const [currentId, setCurrentId] = useState<string | null>(() => (deckId ? (getDueCardsForDeck(deckId)[0]?.id ?? null) : null));
+  const [queueIds, setQueueIds] = useState<string[]>(() => (deckId ? planQueueForDeck(deckId).ids : []));
+  const [currentId, setCurrentId] = useState<string | null>(() => (deckId ? (planQueueForDeck(deckId).ids[0] ?? null) : null));
   const [showBack, setShowBack] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const current = useMemo(() => (currentId ? (allCards().find(c => c.id === currentId) ?? null) : null), [currentId]);
@@ -87,9 +88,9 @@ export default function ReviewPage() {
 
   // Rebuild queue whenever deck changes or refresh is requested
   useEffect(() => {
-    const list = deckId ? getDueCardsForDeck(deckId) : [];
-    setQueueIds(list.map(c => c.id));
-    setCurrentId(list[0]?.id ?? null);
+    const plan = deckId ? planQueueForDeck(deckId) : { ids: [] } as any;
+    setQueueIds(plan.ids);
+    setCurrentId(plan.ids[0] ?? null);
     setShowBack(false);
   }, [deckId]);
 
@@ -173,8 +174,8 @@ export default function ReviewPage() {
     } as any);
 
     // Recompute queue after scheduling (and clear back)
-    const list = deckId ? getDueCardsForDeck(deckId) : [];
-    setQueueIds(list.map(c => c.id));
+    const plan = deckId ? planQueueForDeck(deckId) : { ids: [] } as any;
+    setQueueIds(plan.ids);
     setCurrentId(list[0]?.id ?? null);
     setShowBack(false);
     bump();
@@ -188,8 +189,8 @@ export default function ReviewPage() {
       restoreSchedule(step.cardId, (step as any).prevSched, step.prevDue);
     }
     // Rebuild queue and clear back
-    const list = deckId ? getDueCardsForDeck(deckId) : [];
-    setQueueIds(list.map(c => c.id));
+    const plan = deckId ? planQueueForDeck(deckId) : { ids: [] } as any;
+    setQueueIds(plan.ids);
     setCurrentId(list[0]?.id ?? null);
     setShowBack(false);
     bump();

@@ -17,8 +17,9 @@ const PRELOAD_MJS = path.resolve(__dirname, 'preload.mjs');
 const PRELOAD_JS  = path.resolve(__dirname, 'preload.js');
 const PRELOAD = [PRELOAD_CJS, PRELOAD_MJS, PRELOAD_JS].find(p => fs.existsSync(p)) || PRELOAD_CJS;
 
-const CARDS_PATH  = path.resolve(ROOT, 'src', 'data', 'cards.json');
-const CONFIG_PATH = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
+const CARDS_PATH   = path.resolve(ROOT, 'src', 'data', 'cards.json');
+const CONFIG_PATH  = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
+const DECK_LIMITS_PATH = path.resolve(ROOT, 'src', 'data', 'deckSettings.json');
 
 function createWindow() {
   console.log('[main] preload path:', PRELOAD, 'exists=', fs.existsSync(PRELOAD));
@@ -196,6 +197,35 @@ function registerIpc() {
     }
   });
 
+  // ---- Deck limits (per-deck pacing + thresholds) ----
+  function loadDeckLimits() {
+    try {
+      if (!fs.existsSync(DECK_LIMITS_PATH)) return {};
+      const raw = fs.readFileSync(DECK_LIMITS_PATH, 'utf-8');
+      const parsed = JSON.parse(raw);
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch (e) {
+      console.error('[decks:getLimits] load failed:', e);
+      return {};
+    }
+  }
+  function saveDeckLimits(storeObj) {
+    try {
+      fs.mkdirSync(path.dirname(DECK_LIMITS_PATH), { recursive: true });
+      fs.writeFileSync(DECK_LIMITS_PATH, JSON.stringify(storeObj || {}, null, 2) + '\n', 'utf-8');
+      return true;
+    } catch (e) {
+      console.error('[decks:setLimits] save failed:', e);
+      return false;
+    }
+  }
+  ipcMain.handle('decks:getLimits', async () => {
+    return loadDeckLimits();
+  });
+  ipcMain.handle('decks:setLimits', async (_evt, storeObj) => {
+    return saveDeckLimits(storeObj);
+  });
+
   // Export cards to user's Downloads folder
   ipcMain.handle('cards:exportToDownloads', async () => {
     try {
@@ -252,7 +282,7 @@ function registerIpc() {
     }
   });
 
-  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create, cards:setDue, cards:exportToDownloads, cards:exportJsonToDownloads');
+  console.log('[main] IPC handlers registered: cardgen:save-config, cardgen:make-card, cards:readOne, cards:update, cards:create, cards:setDue, cards:exportToDownloads, cards:exportJsonToDownloads, decks:getLimits, decks:setLimits');
 }
 
 app.whenReady().then(() => {

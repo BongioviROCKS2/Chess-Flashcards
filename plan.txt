@@ -1,4 +1,3 @@
-Allow custom review limits per deck per card type (new, mature, leech, etc.) to deck manage page
 improve stats page to include more review stats, including one like what the Anki app has
 use chess.com username to scan all historical games by that user for auto add card creation
     cards should be created using the following criteria for scanning a game:
@@ -19,9 +18,11 @@ improve scheduling (FSRS?)
 Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, deck options, etc.)
 add/remove items from the file,edit,view,window,help bar on tooltips
     ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)
-add a field to track sibling answers to minimize differences.
-    (siblings are cards that share a parent. so the previous review position in the move sequence is the same, but the opponent played a different response after it, thus creating a different card)
+add a field to track sibling answers
+sibling card should minimize differences
+    siblings are cards that share a parent. so the previous review position in the move sequence is the same, but the opponent played a different response after it, thus creating a different card
     it should be preferred that an answer that meets the "other answer" criteria is selected if it is the answer on a sibling card
+        in other words, sibling cards should prioritize having the same answer, if possible, so as to reduce the need to memorize more unique cards (if siblings share answers, it is easier to recall that the move you should play next, no matter the opponent response, is the same.)
 cleanup files that aren't needed
 add feature to import cards.json file from user
 Add daily opening game challenge
@@ -35,4 +36,6 @@ Add daily opening game challenge
     add a rating system based on performance in each game over time
     Also track time to solve and add as a 4th dimension of rating (speed rating)
     add as a discord game/activity
+add ability to duplicate a card in collection view
+Add readme
 convert application to run on an iphone/android

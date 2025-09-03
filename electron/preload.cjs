@@ -20,6 +20,12 @@ try {
     exportJsonToDownloads: (cards, name) => ipcRenderer.invoke('cards:exportJsonToDownloads', { cards, name }),
   });
 
+  // Deck limits I/O (per-deck pacing settings)
+  contextBridge.exposeInMainWorld('decks', {
+    getLimits: () => ipcRenderer.invoke('decks:getLimits'),
+    setLimits: (storeObj) => ipcRenderer.invoke('decks:setLimits', storeObj),
+  });
+
   // Zoom controls
   contextBridge.exposeInMainWorld('zoom', {
     getFactor: () => { try { return webFrame.getZoomFactor(); } catch { return 1; } },

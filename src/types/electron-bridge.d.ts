@@ -33,6 +33,11 @@ declare global {
       exportJsonToDownloads?: (cards: any[], name?: string) => Promise<{ ok: boolean; path?: string; message?: string }>;
     };
 
+    decks?: {
+      getLimits: () => Promise<Record<string, any>>;
+      setLimits: (storeObj: Record<string, any>) => Promise<boolean>;
+    };
+
     zoom?: {
       getFactor: () => number;
       setFactor: (f: number) => number;
