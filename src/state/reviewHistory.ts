@@ -16,6 +16,7 @@ export type ReviewUndoStep = {
 };
 
 const KEY = 'chessflashcards.reviewHistory.v1'; // session-scoped
+const LOG_KEY = 'chessflashcards.reviewLog.v1'; // persistent review log used by Stats
 
 function load(): ReviewUndoStep[] {
   try {
@@ -59,6 +60,25 @@ export function undoLast(): ReviewUndoStep | null {
   if (!step) return null;
   // Restore previous due: undefined → clears override; 'new' or ISO string → sets it
   setCardDueFlexible(step.cardId, step.prevDue);
+  try {
+    const raw = localStorage.getItem(LOG_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) {
+        let removed = false;
+        for (let i = arr.length - 1; i >= 0; i--) {
+          const rec = arr[i];
+          if (rec && rec.id === step.cardId) {
+            arr.splice(i, 1);
+            removed = true;
+            break;
+          }
+        }
+        if (!removed) arr.pop();
+        localStorage.setItem(LOG_KEY, JSON.stringify(arr));
+      }
+    }
+  } catch {}
   save(steps);
   return step;
 }

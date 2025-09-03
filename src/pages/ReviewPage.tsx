@@ -78,6 +78,7 @@ export default function ReviewPage() {
   const [currentId, setCurrentId] = useState<string | null>(() => (deckId ? (planQueueForDeck(deckId).ids[0] ?? null) : null));
   const [showBack, setShowBack] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const [answerShownAt, setAnswerShownAt] = useState<number | null>(null);
   const current = useMemo(() => (currentId ? (allCards().find(c => c.id === currentId) ?? null) : null), [currentId]);
 
   const deckPathParts = useMemo(() => {
@@ -154,14 +155,18 @@ export default function ReviewPage() {
   // --- Handlers ---
   const handleBack = () => navigate('/');
 
-  const handleShowAnswer = () => setShowBack(true);
+  const handleShowAnswer = () => {
+    setShowBack(true);
+    setAnswerShownAt(Date.now());
+  };
   const handleFlip = () => setFlipped(f => !f);
 
   const completeReview = (grade: 'again' | 'hard' | 'good' | 'easy') => {
     if (!current) return;
     const prevDue = getCardDue(current.id);
     const prevSched = getMeta(current.id);
-    const { newDue, newMeta } = schedule(current.id, grade);
+    const dur = (answerShownAt && answerShownAt > 0) ? (Date.now() - answerShownAt) : undefined;
+    const { newDue, newMeta } = schedule(current.id, grade, { durationMs: dur });
 
     // Record undo step with scheduler snapshot (cast to tolerate optional fields)
     pushReviewUndoStep({
@@ -176,8 +181,9 @@ export default function ReviewPage() {
     // Recompute queue after scheduling (and clear back)
     const plan = deckId ? planQueueForDeck(deckId) : { ids: [] } as any;
     setQueueIds(plan.ids);
-    setCurrentId(list[0]?.id ?? null);
+    setCurrentId(plan.ids[0] ?? null);
     setShowBack(false);
+    setAnswerShownAt(null);
     bump();
   };
 
@@ -191,7 +197,7 @@ export default function ReviewPage() {
     // Rebuild queue and clear back
     const plan = deckId ? planQueueForDeck(deckId) : { ids: [] } as any;
     setQueueIds(plan.ids);
-    setCurrentId(list[0]?.id ?? null);
+    setCurrentId(plan.ids[0] ?? null);
     setShowBack(false);
     bump();
   };

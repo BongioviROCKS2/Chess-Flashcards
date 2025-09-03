@@ -146,6 +146,14 @@ body {
   border: 1px solid var(--border);
 }
 
+/* Generic content section container for grouping areas on pages like Stats */
+.section {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
 .sub {
   color: var(--muted);
   font-size: 13px;

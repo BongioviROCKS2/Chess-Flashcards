@@ -39,3 +39,9 @@ Add daily opening game challenge
 add ability to duplicate a card in collection view
 Add readme
 convert application to run on an iphone/android
+    implement cloud sync across devices
+    add notifications for reviews or challenges
+create a "master database" of all cards that users create
+    don't keep duplicates; only keep the deepest/most trustworthy result for a position and don't apply sibling assistance to the card stored in the master database
+    add feature to offer that users pull their answers from this database instead of using device to think
+create a "practice mode" for the users to manually navigate lines (using combinationg of master database and active stockfish)

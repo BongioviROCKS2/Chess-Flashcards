@@ -1,4 +1,4 @@
-import { setCardDueFlexible, getCardDue } from '../data/cardStore';
+import { setCardDueFlexible, getCardDue, allCards } from '../data/cardStore';
 
 export type Grade = 'again' | 'hard' | 'good' | 'easy';
 
@@ -30,12 +30,22 @@ function save(s: Store) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch {}
 }
 
-type ReviewLogEntry = { id: string; grade: Grade; ts: number };
-function appendLog(id: string, grade: Grade) {
+type ReviewLogEntry = {
+  id: string;
+  grade: Grade;
+  ts: number;
+  deck?: string;
+  prevInt?: number; // minutes
+  newInt?: number;  // minutes
+  wasNew?: boolean;
+  newDueISO?: string;
+  durationMs?: number;
+};
+function appendLog(e: ReviewLogEntry) {
   try {
     const raw = localStorage.getItem(LOG_KEY);
     const arr: ReviewLogEntry[] = raw ? (JSON.parse(raw) || []) : [];
-    arr.push({ id, grade, ts: Date.now() });
+    arr.push(e);
     localStorage.setItem(LOG_KEY, JSON.stringify(arr));
   } catch {}
 }
@@ -83,7 +93,11 @@ function nextStreak(prev: Meta | undefined, grade: Grade): number {
   return clamp(base + (grade === 'hard' ? 0 : 1), 0, 1000);
 }
 
-export function schedule(cardId: string, grade: Grade): { prevMeta: Meta | undefined; newMeta: Meta; prevDue: string | 'new' | undefined; newDue: string } {
+export function schedule(
+  cardId: string,
+  grade: Grade,
+  opts?: { durationMs?: number }
+): { prevMeta: Meta | undefined; newMeta: Meta; prevDue: string | 'new' | undefined; newDue: string } {
   const prevMeta = getMeta(cardId);
   const prevDue = getCardDue(cardId);
 
@@ -100,8 +114,19 @@ export function schedule(cardId: string, grade: Grade): { prevMeta: Meta | undef
   try {
     (window as any).cards?.setDue?.(cardId, dueISO).catch(() => {});
   } catch {}
-  // Append to review log for stats
-  appendLog(cardId, grade);
+  // Append to review log for stats (extended entry)
+  const deckId = (allCards().find(c => c.id === cardId)?.deck) || undefined;
+  appendLog({
+    id: cardId,
+    grade,
+    ts: Date.now(),
+    deck: deckId,
+    prevInt: prevMeta?.intervalMin ?? 0,
+    newInt: intervalMin,
+    wasNew: prevDue === 'new',
+    newDueISO: dueISO,
+    durationMs: opts?.durationMs,
+  });
 
   return { prevMeta, newMeta, prevDue, newDue: dueISO };
 }

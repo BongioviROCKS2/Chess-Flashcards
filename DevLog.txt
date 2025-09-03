@@ -54,3 +54,4 @@
 9/2/25:
     3 hours:
         add details to manage deck page
+        add features to the stats page
