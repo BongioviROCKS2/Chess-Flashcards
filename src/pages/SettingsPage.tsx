@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettings } from '../state/settings';
 import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 type CardgenConfig = {
   otherAnswersAcceptance: number;
@@ -193,6 +193,8 @@ export default function SettingsPage() {
               placeholder="optional"
             />
           </div>
+
+          {/* Auto-Create moved to header (Auto Add button) */}
 
           {/* Lichess username */}
           <div className="row" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 12, alignItems: 'center' }}>
@@ -449,6 +451,20 @@ export default function SettingsPage() {
                 <button type="button" className="step down" onClick={decHash} title="Decrease by 64" aria-label="Decrease">▼</button>
               </div>
             </div>
+          </div>
+
+          {/* Forced Answers Submenu */}
+          <div className="row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>Forced Answers</div>
+            <button
+              className="button"
+              onClick={async () => {
+                await maybeSaveCardgenConfig();
+                navigate('/settings/forced-answers', { state: { from: location } });
+              }}
+            >
+              Manage
+            </button>
           </div>
 
         </div>

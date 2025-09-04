@@ -17,11 +17,14 @@
  * - Produces: answer, answerFen, eval, exampleLine (SAN[]), otherAnswers (unique SAN within window).
  * - Deck from side-to-move: "white-other" or "black-other".
  * - NEW: Removes `last`; fills `parent` when possible; also updates the parent’s `children` list.
+ *
+ * NEW (packaging-safe):
+ * - Export `createCard({ movesSAN, pgn, resolveEngine })` to call from Electron without spawning Node.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { Chess } from 'chess.js';
 import { resolveEnginePath } from './engine-path.js';
@@ -32,8 +35,7 @@ const ROOT = process.cwd();
 
 const CARDS_PATH = path.resolve(ROOT, 'src', 'data', 'cards.json');
 const CONFIG_PATH = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
-
-// Engine path resolution is shared via scripts/engine-path.js
+const ANS_OVR_PATH = path.resolve(ROOT, 'src', 'data', 'answer-overrides.json');
 
 // ---------- CLI ----------
 function parseArgs(argv) {
@@ -98,18 +100,42 @@ function saveCardsArray(arr) {
   fs.writeFileSync(CARDS_PATH, JSON.stringify(arr, null, 2) + '\n', 'utf-8');
 }
 
+// ---------- Forced Answers (FEN -> SAN) ----------
+function loadAnswerOverrides() {
+  try {
+    if (!fs.existsSync(ANS_OVR_PATH)) return {};
+    const raw = fs.readFileSync(ANS_OVR_PATH, 'utf-8').trim();
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return (parsed && typeof parsed === 'object') ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+const OVR = loadAnswerOverrides();
+
 // ---------- PGN / moves ----------
 function pgnToSANArray(pgn) {
-  if (!pgn || !String(pgn).trim()) return [];
-  return String(pgn)
-    .replace(/\{[^}]*\}/g, '')
+  const s = String(pgn || '');
+  if (!s.trim()) return [];
+  try {
+    const c = new Chess();
+    if (c.loadPgn(s, { sloppy: true })) {
+      return c.history();
+    }
+  } catch {}
+  const stripped = s
+    .replace(/^\s*\[[^\]]*]\s*$/gm, '')
+    .replace(/;[^\n\r]*/g, '')
+    .replace(/\{[^}]*}/g, '')
+    .replace(/\([^)]*\)/g, '')
     .replace(/\$\d+/g, '')
-    .replace(/\d+\.(\.\.)?/g, '')
     .replace(/\b(1-0|0-1|1\/2-1\/2|\*)\b/g, '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+    .replace(/\d+\.(\.\.)?/g, ' ')
+    .trim();
+  return stripped.split(/\s+/).filter(Boolean);
 }
+
 function movesToSANArray(moves) {
   if (!moves || !String(moves).trim()) return [];
   return String(moves).replace(/,/g, ' ').trim().split(/\s+/).filter(Boolean);
@@ -120,8 +146,8 @@ function computeDepthFromPlies(plies) {
 }
 
 // ---------- Engine ----------
-function startEngine() {
-  const exe = resolveEnginePath();
+function startEngine(resolveOpts = {}) {
+  const exe = resolveEnginePath(resolveOpts);
   if (!fs.existsSync(exe)) throw new Error(`Stockfish not found at: ${exe}`);
   const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'inherit'] });
   child.stdin.setDefaultEncoding('utf-8');
@@ -163,10 +189,24 @@ function uciToSanLine(initialFen, uciMoves) {
   }
   return out;
 }
-async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }) {
+async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }, resolveOpts = {}) {
   return await new Promise((resolve, reject) => {
-    const child = startEngine();
+    const child = startEngine(resolveOpts);
     const pvMap = new Map(); // multipv -> latest info
+    let settled = false;
+
+    const finish = (ok = true) => {
+      if (settled) return; settled = true;
+      try { child.stdin.end(); child.kill(); } catch {}
+      const keys = [...pvMap.keys()].sort((a, b) => a - b);
+      if (ok && keys.length) return resolve(keys.map(k => pvMap.get(k)));
+      if (ok) return resolve([]);
+      return reject(new Error('engine failed'));
+    };
+
+    // Safety timeout to avoid hangs (per-position)
+    const TIMEOUT_MS = 8000;
+    const timer = setTimeout(() => { finish(true); }, TIMEOUT_MS);
 
     child.stdout.on('data', (buf) => {
       const chunk = String(buf);
@@ -178,14 +218,13 @@ async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }) {
             pvMap.set(info.multipv || 1, info);
           }
         } else if (ln.startsWith('bestmove')) {
-          try { child.stdin.end(); child.kill(); } catch {}
-          const keys = [...pvMap.keys()].sort((a, b) => a - b);
-          resolve(keys.map(k => pvMap.get(k)));
+          clearTimeout(timer);
+          finish(true);
         }
       }
     });
 
-    child.once('error', reject);
+    child.once('error', () => { clearTimeout(timer); finish(false); });
 
     // Correct MultiPV flow: set via setoption, NOT in "go" command.
     send(child, 'uci');
@@ -245,14 +284,14 @@ function formatEvalDisplay(score) {
   return `${sgn}${shown}`;
 }
 
-// ---------- Main ----------
-async function main() {
-  // Build SAN list from args
+// ---------- Programmatic API (exported) ----------
+export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} } = {}) {
+  // Build SAN list
   let sans = [];
-  if (typeof MOVES_RAW !== 'undefined') {
-    sans = movesToSANArray(MOVES_RAW);
-  } else if (typeof PGN_RAW !== 'undefined') {
-    sans = pgnToSANArray(PGN_RAW);
+  if (Array.isArray(movesSAN) && movesSAN.length) {
+    sans = movesSAN.slice();
+  } else if (typeof pgn === 'string' && pgn.trim()) {
+    sans = pgnToSANArray(pgn);
   } else {
     sans = []; // start position
   }
@@ -260,13 +299,14 @@ async function main() {
   // Review info
   const { fen, deckId, depthMove } = buildReviewFromSANs(sans);
 
-  // Duplicate check
+  // Duplicate check (by exact move sequence for this deck)
   const arr = loadCardsArray();
-  const dup = arr.find(c => c?.fields?.fen === fen && c?.deck === deckId);
-  if (dup) {
-    console.log(`[make-card] Skipped: review position already exists in deck "${deckId}" as card ${dup.id}`);
-    console.log(`  FEN: ${fen}`);
-    return;
+  const pathKey = sans.join(' ');
+  const dupPath = arr.find(c => c?.fields?.moveSequence === pathKey && c?.deck === deckId);
+  if (dupPath) {
+    console.log(`[make-card] Skipped: moveSequence already exists in deck "${deckId}" as card ${dupPath.id}`);
+    console.log(`  PGN: ${pathKey}`);
+    return { ok: true, skipped: true, deckId, existingId: dupPath.id };
   }
 
   // Stockfish config
@@ -275,16 +315,29 @@ async function main() {
   const threads = Math.max(1, Number(CFG.threads) || 1);
   const hash = Math.max(32, Number(CFG.hash) || 1024);
 
-  const infos = await analyzeWithStockfish(fen, { depth, threads, hash, multipv });
-  if (!infos.length) throw new Error('Engine returned no PVs.');
+  // Transposition-aware; run engine only if needed or forced
+  const sameFenCards = arr.filter(c => c?.fields?.fen === fen && c?.deck === deckId);
+  const forcedSAN = typeof OVR[fen] === 'string' ? String(OVR[fen]) : undefined;
+  let infos = [];
+  if (!sameFenCards.length || forcedSAN) {
+    infos = await analyzeWithStockfish(fen, { depth, threads, hash, multipv }, resolveEngine);
+    if (!infos.length) throw new Error('Engine returned no PVs.');
+  }
 
   // Best line
-  const bestInfo = infos.find(o => (o?.multipv || 1) === 1) || infos[0];
-  const bestSanLine = uciToSanLine(fen, bestInfo.pv);
-  const bestAnswerSAN = bestSanLine[0] || '';
-  const bestEval = bestInfo.score
-    ? { kind: bestInfo.score.kind, value: bestInfo.score.value, depth: bestInfo.depth }
-    : undefined;
+  let bestInfo, bestSanLine, bestAnswerSAN, bestEval;
+  if (infos.length) {
+    bestInfo = infos.find(o => (o?.multipv || 1) === 1) || infos[0];
+    bestSanLine = uciToSanLine(fen, bestInfo.pv);
+    bestAnswerSAN = bestSanLine[0] || '';
+    bestEval = bestInfo.score
+      ? { kind: bestInfo.score.kind, value: bestInfo.score.value, depth: bestInfo.depth }
+      : undefined;
+  } else if (sameFenCards.length) {
+    bestSanLine = sameFenCards[0]?.fields?.exampleLine || [];
+    bestAnswerSAN = sameFenCards[0]?.fields?.answer || '';
+    bestEval = sameFenCards[0]?.fields?.eval;
+  }
 
   // Other answers (unique SAN, within acceptance window)
   const cpWindow = Math.round(100 * (Number(CFG.otherAnswersAcceptance) || 0.2)); // in centipawns
@@ -301,19 +354,14 @@ async function main() {
     if (!ans || seen.has(ans)) continue;
 
     let keep = false;
-    if (bestInfo.score?.kind === 'cp' && it.score.kind === 'cp') {
-      // keep if not worse than cpWindow compared to best
+    if (bestInfo?.score?.kind === 'cp' && it.score.kind === 'cp') {
       const delta = bestInfo.score.value - it.score.value; // ≥ 0 for worse or equal
       if (delta <= cpWindow) keep = true;
-    } else if (bestInfo.score?.kind === 'mate' && it.score.kind === 'mate') {
-      // same sign & longer/equal mate length
+    } else if (bestInfo?.score?.kind === 'mate' && it.score.kind === 'mate') {
       const sameSign =
         (bestInfo.score.value >= 0 && it.score.value >= 0) ||
         (bestInfo.score.value < 0 && it.score.value < 0);
       if (sameSign && Math.abs(it.score.value) >= Math.abs(bestInfo.score.value)) keep = true;
-    } else {
-      // best=mate but alt=cp, or vice-versa -> skip
-      keep = false;
     }
 
     if (keep) {
@@ -323,8 +371,19 @@ async function main() {
     }
   }
 
+  // If we didn't run engine (reused transposition anchor), reuse otherAnswers too
+  if ((!infos || infos.length === 0) && sameFenCards.length) {
+    const anchor = sameFenCards[0];
+    if (Array.isArray(anchor?.fields?.otherAnswers)) {
+      for (const x of anchor.fields.otherAnswers) {
+        if (!seen.has(x)) others.push(x);
+        if (others.length >= CFG.maxOtherAnswerCount) break;
+      }
+    }
+  }
+
   // Example line = best PV (as SAN)
-  const exampleLine = bestSanLine;
+  const exampleLine = bestSanLine || [];
 
   // Answer FEN (apply best move)
   let answerFen;
@@ -334,14 +393,14 @@ async function main() {
     if (mv) answerFen = chess.fen();
   }
 
-  // Determine parent (per new rule)
+  // Determine parent
   let parentId;
   if (sans.length >= 2) {
     const parent = findParentForPath(arr, sans);
     if (parent) parentId = parent.id;
   }
 
-  // Build fields (no `last`; with computed depth/parent)
+  // Build fields
   const fields = {
     moveSequence: sans.join(' '),
     fen,
@@ -352,18 +411,47 @@ async function main() {
     otherAnswers: others,
     depth: depthMove,
     ...(parentId ? { parent: parentId } : {}),
-    // children/descendants are computed at load or filled when future children are added
   };
 
   // New card
   const id = `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const card = {
-    id,
-    deck: deckId,
-    tags: [],
-    fields,
-    due: 'new',
-  };
+  const card = { id, deck: deckId, tags: [], fields, due: 'new' };
+
+  // Apply forced/anchor answer selection and transposition rules
+  try {
+    const chosen = ( (typeof OVR[fen] === 'string' && OVR[fen]) || (sameFenCards[0]?.fields?.answer) || bestAnswerSAN || '' ).trim();
+    if (chosen && card.fields.answer !== chosen) {
+      card.fields.answer = chosen;
+      try {
+        const chessX = new Chess(fen);
+        const mvX = chessX.move(chosen, { sloppy: true });
+        if (mvX) card.fields.answerFen = chessX.fen();
+      } catch {}
+    }
+    if ((!infos || !infos.length) && sameFenCards.length) {
+      const anchor = sameFenCards[0];
+      if (Array.isArray(anchor?.fields?.otherAnswers)) card.fields.otherAnswers = [...anchor.fields.otherAnswers];
+      if (!card.fields.eval && anchor?.fields?.eval) card.fields.eval = anchor.fields.eval;
+      if ((!card.fields.exampleLine || !card.fields.exampleLine.length) && Array.isArray(anchor?.fields?.exampleLine)) {
+        card.fields.exampleLine = [...anchor.fields.exampleLine];
+      }
+    }
+    if (typeof OVR[fen] === 'string' && sameFenCards.length) {
+      let mutated = false;
+      for (const c of sameFenCards) {
+        if (c?.fields?.answer !== card.fields.answer) {
+          c.fields.answer = card.fields.answer;
+          try {
+            const chessY = new Chess(fen);
+            const mvY = chessY.move(card.fields.answer, { sloppy: true });
+            if (mvY) c.fields.answerFen = chessY.fen();
+          } catch {}
+          mutated = true;
+        }
+      }
+      if (mutated) saveCardsArray(arr);
+    }
+  } catch {}
 
   // If we found a parent, add this card id to its children (dedup)
   if (parentId) {
@@ -384,25 +472,28 @@ async function main() {
   console.log(`  Review FEN: ${fen}`);
   console.log(`  Depth (move number): ${depthMove}`);
   console.log(`  Parent: ${parentId || '(none)'}`);
-  console.log(`  Answer: ${bestAnswerSAN}`);
+  console.log(`  Answer: ${card.fields.answer}`);
   console.log(`  Example line: ${exampleLine.join(' ') || '(none)'}`);
   console.log(`  Other answers: ${others.join(', ') || '(none)'}`);
 
-  // Print evaluations for all options
-  const optsLine = infos
-    .sort((a, b) => (a.multipv || 1) - (b.multipv || 1))
-    .map((it) => {
-      const san0 = uciToSanLine(fen, it.pv)[0] || '?';
-      const evalStr = it.score ? formatEvalDisplay(it.score) : '?';
-      return `${san0} ${evalStr}`;
-    })
-    .join(', ');
-  const bestDepth = bestInfo.depth ?? depth;
-  console.log(`  Options (d=${bestDepth}): ${optsLine}`);
+  if (Array.isArray(exampleLine) && exampleLine.length) {
+    console.log(`  Options: ${exampleLine[0]} (best)`);
+  }
+
+  return { ok: true, id, deckId };
 }
 
-// Run
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// ---------- CLI runner ----------
+async function main() {
+  const movesSAN = typeof MOVES_RAW !== 'undefined' ? movesToSANArray(MOVES_RAW) : [];
+  const pgn = (movesSAN.length ? '' : (PGN_RAW || ''));
+  await createCard({ movesSAN, pgn });
+}
+
+const isCli = (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url);
+if (isCli) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

@@ -55,3 +55,6 @@
     3 hours:
         add details to manage deck page
         add features to the stats page
+9/3/25:
+    3 hours:
+        added Auto Add

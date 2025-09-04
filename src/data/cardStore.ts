@@ -20,7 +20,7 @@ try {
   cards = [];
 }
 
-const byId = new Map<string, Card>(cards.map(c => [c.id, c]));
+let byId = new Map<string, Card>(cards.map(c => [c.id, c]));
 
 // ---------- Local overrides (persist due changes for testing) ----------
 const OV_KEY = 'chessflashcards.cardOverrides.v1';
@@ -72,6 +72,22 @@ export function allCards(): Card[] {
 
 export function cardsByDeck(deckId: string): Card[] {
   return cards.filter(c => c.deck === deckId);
+}
+
+// Replace in-memory cards from disk (or other source) and recompute indices/relations.
+export function replaceCards(next: Card[]) {
+  if (!Array.isArray(next)) next = [] as Card[];
+  cards = next as Card[];
+  byId = new Map<string, Card>(cards.map(c => [c.id, c]));
+  // Reapply due overrides (local testing state)
+  const ov = loadOverrides();
+  for (const c of cards) {
+    const o = ov[c.id];
+    if (o && 'due' in o) {
+      (c as any).due = o.due;
+    }
+  }
+  computeChildren();
 }
 
 // ---------- Compute relations (children + descendants) ----------

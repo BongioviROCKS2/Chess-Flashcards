@@ -23,6 +23,7 @@ type ManualDraft = {
     evalDepth: string;
     exampleLine: string;
     otherAnswers: string;
+    siblingAnswers: string;
     depth: string;
     parent: string;
   };
@@ -117,6 +118,7 @@ export default function ManualAddPage() {
         evalDepth: '',
         exampleLine: '',
         otherAnswers: '',
+        siblingAnswers: '',
         depth: '',
         parent: '',
       },

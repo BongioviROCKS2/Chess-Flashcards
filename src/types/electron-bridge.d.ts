@@ -24,7 +24,20 @@ declare global {
       }) => Promise<{ ok: boolean; message: string }>;
     };
 
+    autogen?: {
+      scanChessCom: (opts: { username?: string; limit?: number }) => Promise<{ ok: boolean; message?: string; scanned?: number; created?: number; cancelled?: boolean }>;
+      cancel: () => void;
+      onProgress: (cb: (p: { phase?: string; index?: number; total?: number; url?: string }) => void) => () => void;
+      onDone: (cb: (r: { ok?: boolean; message?: string; scanned?: number; created?: number; cancelled?: boolean }) => void) => () => void;
+    };
+
+    answers?: {
+      readAll: () => Promise<Record<string, string>>;
+      saveAll: (map: Record<string, string>) => Promise<boolean>;
+    };
+
     cards?: {
+      readAll?: () => Promise<any[]>;
       readOne: (id: string) => Promise<any | null>;
       update: (card: any) => Promise<boolean>;
       create?: (card: any) => Promise<boolean>;

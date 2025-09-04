@@ -6,7 +6,7 @@ import { useBackKeybind } from '../hooks/useBackKeybind';
 type Row = {
   action:
     | 'app.back'
-    | 'board.first' | 'board.prev' | 'board.next' | 'board.last'
+    | 'board.first' | 'board.prev' | 'board.next' | 'board.last' | 'board.flip'
     | 'review.showAnswer' | 'review.again' | 'review.hard' | 'review.good' | 'review.easy' | 'review.undo';
   label: string;
 };

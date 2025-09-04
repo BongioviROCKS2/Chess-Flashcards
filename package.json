@@ -7,7 +7,7 @@
   "author": "",
   "license": "MIT",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env ELECTRON_START_URL=http://localhost:5173 electron .\"",
+    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && cross-env STOCKFISH_PATH=engines/win-x64/stockfish17.1.exe ELECTRON_START_URL=http://localhost:5173 electron .\"",
     "web:dev": "vite",
     "build:renderer": "vite build",
     "build": "npm run build:renderer && npx electron-builder",
@@ -35,7 +35,7 @@
     ],
     "extraResources": [
       {
-        "from": "engines/",
+        "from": "engines/**",
         "to": "engines"
       }
     ],

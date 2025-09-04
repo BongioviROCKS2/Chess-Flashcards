@@ -14,7 +14,10 @@ import CollectionPage from './pages/CollectionPage';
 import ManualAddPage from './pages/ManualAddPage';
 import EditCardPage from './pages/EditCardPage'; // <-- NEW
 import ManageDeckPage from './pages/ManageDeckPage';
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSettings } from './state/settings';
+import { replaceCards } from './data/cardStore';
+import ForcedAnswersPage from './pages/ForcedAnswersPage';
 
 declare global {
   interface Window {
@@ -30,14 +33,53 @@ declare global {
 
 function Header() {
   const location = useLocation();
+  const { settings } = useSettings();
+  const [showAuto, setShowAuto] = useState(false);
+  const [progress, setProgress] = useState<{ phase?: string; index?: number; total?: number; url?: string } | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const cleanupRef = useRef<{ offProg?: () => void; offDone?: () => void }>({});
 
   const handleAutoAdd = () => {
-    console.log('[Auto Add] trigger clicked');
+    if (!settings.chessComUser) {
+      setStatus('Set Chess.com username in Settings first.');
+      setShowAuto(true);
+      return;
+    }
+    setStatus(null);
+    setProgress(null);
+    setShowAuto(true);
+    setBusy(true);
+    try {
+      // Subscribe to progress/done events
+      cleanupRef.current.offProg = window.autogen?.onProgress?.((p: { phase?: string; index?: number; total?: number; url?: string }) => {
+        try { console.log('[AutoAdd] progress', p); } catch {}
+        setProgress(p || null);
+      }) || undefined;
+      cleanupRef.current.offDone = window.autogen?.onDone?.(async (res: { ok?: boolean; message?: string; scanned?: number; created?: number; cancelled?: boolean }) => {
+        try { console.log('[AutoAdd] done', res); } catch {}
+        setBusy(false);
+        setStatus(res?.message || (res?.ok ? 'Done.' : 'Finished'));
+        // Reload cards.json from disk into in-memory store
+        try {
+          const arr = await (window as any).cards?.readAll?.();
+          if (arr) replaceCards(arr as any);
+        } catch {}
+      }) || undefined;
+
+      // Limit to recent 5 games for testing
+      try { console.log('[AutoAdd] start', { user: settings.chessComUser, limit: 5 }); } catch {}
+      void window.autogen?.scanChessCom?.({ username: settings.chessComUser, limit: 5 });
+    } catch (e) {
+      setBusy(false);
+      setStatus((e as any)?.message || 'Failed to start scan.');
+    }
   };
 
   const linkStyle = { textDecoration: 'none' as const };
 
   return (
+    <>
     <header className="header">
       <img
         src={logo}
@@ -61,6 +103,66 @@ function Header() {
         <Link to="/settings" state={{ from: location }} className="button secondary" style={linkStyle}>Settings</Link>
       </nav>
     </header>
+    {showAuto && (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+        <div className="card" style={{ width: 520, maxWidth: '90%', padding: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ margin: 0 }}>Auto Add from Chess.com</h3>
+            <button
+              className="button secondary"
+              onClick={async () => {
+                // Cancel ongoing scan if busy
+                if (busy) {
+                  try { console.log('[AutoAdd] cancel clicked'); window.autogen?.cancel?.(); } catch {}
+                }
+                // Always attempt a final reload of cards
+                try {
+                  const arr = await (window as any).cards?.readAll?.();
+                  if (arr) replaceCards(arr as any);
+                } catch {}
+                setBusy(false);
+                setShowAuto(false);
+                // Cleanup listeners
+                try { cleanupRef.current.offProg?.(); } catch {}
+                try { cleanupRef.current.offDone?.(); } catch {}
+              }}
+            >
+              {busy ? 'Cancel' : 'Close'}
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14, marginBottom: 10, fontSize: 14 }}>
+            {status || (busy ? 'Scanning…' : 'Ready')}
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ height: 10, background: 'var(--border)', borderRadius: 6, overflow: 'hidden', position: 'relative' }}>
+            {(() => {
+              const total = Math.max(1, progress?.total || 0);
+              const index = Math.min(total, (progress?.index || 0));
+              // Show progress of current item as well
+              const pct = total > 0 ? Math.round(((busy ? index : total) / total) * 100) : 0;
+              return (
+                <div style={{ width: `${pct}%`, height: '100%', background: 'var(--accent, #36f)' }} />
+              );
+            })()}
+          </div>
+
+          {progress?.url && (
+            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.8 }}>
+              {progress?.url}
+            </div>
+          )}
+
+          {!settings.chessComUser && (
+            <div style={{ marginTop: 12, fontSize: 13, color: 'var(--danger, #d33)' }}>
+              Tip: set your Chess.com username in Settings first.
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -68,7 +170,7 @@ function useZoomShortcuts() {
   useEffect(() => {
     if (!window.zoom) return;
 
-    const STEP = 0.1, MIN = 0.5, MAX = 3.0;
+    const STEP = 0.05, MIN = 0.25, MAX = 5.0;
     const clamp = (f: number) => Math.max(MIN, Math.min(MAX, f));
     const set = (f: number) => window.zoom!.setFactor(clamp(f));
     const get = () => window.zoom!.getFactor();
@@ -139,6 +241,7 @@ export default function App() {
                 <Route path="/review/:deckId" element={<ReviewPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/settings/keybinds" element={<KeybindsPage />} />
+                <Route path="/settings/forced-answers" element={<ForcedAnswersPage />} />
                 <Route path="/stats" element={<StatsPage />} />
                 <Route path="/collection" element={<CollectionPage />} />
                 <Route path="/manual-add" element={<ManualAddPage />} />
