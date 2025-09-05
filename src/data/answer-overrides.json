@@ -1,1 +1,14 @@
-{}
+{
+  "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq -": {
+    "move": "e5",
+    "pgn": "e4"
+  },
+  "r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq -": {
+    "move": "d4",
+    "pgn": "e4 e5 Nf3 Nc6"
+  },
+  "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -": {
+    "move": "d5",
+    "pgn": "1. d4"
+  }
+}

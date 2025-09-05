@@ -141,7 +141,7 @@ export function getDueCountForDeck(deckId: string, includeDesc = true): number {
       }
     }
   }
-  return cards.filter(c => ids.has(c.deck) && isDueCard(c)).length;
+  return cards.filter(c => ids.has(c.deck) && isDueCard(c) && !((c.tags || []).includes('Archived'))).length;
 }
 
 export function getDueCardsForDeck(deckId: string): Card[] {
@@ -156,7 +156,7 @@ export function getDueCardsForDeck(deckId: string): Card[] {
       }
     }
   }
-  return cards.filter(c => matches.has(c.deck) && isDueCard(c));
+  return cards.filter(c => matches.has(c.deck) && isDueCard(c) && !((c.tags || []).includes('Archived')));
 }
 
 // ---------- Review updates (testing) ----------

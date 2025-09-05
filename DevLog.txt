@@ -58,3 +58,11 @@
 9/3/25:
     3 hours:
         added Auto Add
+9/4/25:
+    2 hours:
+        updated transposition to consider first 4 fields of FEN instead of full FEN
+        Added PGN column to Forced Answers table
+        Added Archive feature (particularly for cards replaced by forced answers)
+            also archive/unarchive button to edit card page
+            add archive tag to collection page
+            add options to remove forced answer with/without archive

@@ -32,8 +32,8 @@ declare global {
     };
 
     answers?: {
-      readAll: () => Promise<Record<string, string>>;
-      saveAll: (map: Record<string, string>) => Promise<boolean>;
+      readAll: () => Promise<Record<string, string | { move: string; pgn?: string }>>;
+      saveAll: (map: Record<string, string | { move: string; pgn?: string }>) => Promise<boolean>;
     };
 
     cards?: {

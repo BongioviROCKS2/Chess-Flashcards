@@ -309,6 +309,8 @@ export default function CollectionPage() {
   const allTags = useMemo(() => {
     const s = new Set<string>();
     for (const c of all) for (const t of (c.tags || [])) s.add(t);
+    // Always include special tag for filtering archived cards
+    s.add('Archived');
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [all]);
   const selectedDecksExpanded = useMemo(() => {

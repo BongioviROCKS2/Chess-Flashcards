@@ -493,7 +493,68 @@ function registerIpc() {
     return loadAnswerOverrides();
   });
   ipcMain.handle('answers:saveAll', async (_evt, map) => {
-    return saveAnswerOverrides(map && typeof map === 'object' ? map : {});
+    try {
+      const prev = loadAnswerOverrides();
+      const next = (map && typeof map === 'object') ? map : {};
+      const ok = saveAnswerOverrides(next);
+      if (!ok) return false;
+
+      // Determine which positions added/changed (by 4-field FEN keys)
+      const getMove = (v) => {
+        if (!v) return undefined;
+        if (typeof v === 'string') return v;
+        if (typeof v === 'object') return v.move;
+        return undefined;
+      };
+      const changed = [];
+      for (const k of Object.keys(next)) {
+        const pm = getMove(prev[k]);
+        const nm = getMove(next[k]);
+        if (nm && nm !== pm) changed.push(k);
+      }
+
+      if (changed.length) {
+        const cards = loadCardsArray();
+        const byId = new Map(cards.map(c => [c.id, c]));
+        const childrenOf = (id) => {
+          const c = byId.get(id);
+          return (c && c.fields && Array.isArray(c.fields.children)) ? c.fields.children : [];
+        };
+        const fen4 = (fen) => { try { return String(fen||'').split(/\s+/).slice(0,4).join(' '); } catch { return String(fen||''); } };
+        const ensureArchived = (c) => {
+          const tags = Array.isArray(c.tags) ? c.tags : [];
+          if (!tags.includes('Archived')) { c.tags = [...tags, 'Archived']; return true; }
+          return false;
+        };
+
+        let mutated = false;
+        for (const key4 of changed) {
+          for (const root of cards) {
+            if (!root || !root.fields) continue;
+            if (fen4(root.fields.fen) !== key4) continue;
+            // Archive root and descendants
+            const stack = [root.id];
+            const seen = new Set();
+            while (stack.length) {
+              const id = stack.pop();
+              if (!id || seen.has(id)) continue;
+              seen.add(id);
+              const node = byId.get(id);
+              if (!node) continue;
+              if (ensureArchived(node)) mutated = true;
+              const kids = childrenOf(id);
+              for (const kid of kids) stack.push(kid);
+            }
+          }
+        }
+        if (mutated) saveCardsArray(cards);
+      }
+
+      return true;
+    } catch (e) {
+      console.error('[answers:saveAll] failed:', e);
+      return false;
+    }
   });
 
   // ---- Deck limits (per-deck pacing + thresholds) ----

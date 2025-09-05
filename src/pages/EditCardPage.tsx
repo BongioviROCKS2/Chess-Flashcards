@@ -101,6 +101,7 @@ export default function EditCardPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   // Back keybind
   const goBack = () => {
@@ -208,6 +209,65 @@ export default function EditCardPage() {
     }
   }
 
+  function hasArchivedTag(c?: Card | null): boolean {
+    if (!c) return false;
+    return Array.isArray(c.tags) && c.tags.includes('Archived');
+  }
+
+  async function applyArchiveMode(mode: 'archive' | 'unarchive', includeDesc: boolean) {
+    try {
+      if (!card) return;
+      const readAll = (window as any).cards?.readAll;
+      if (!readAll) {
+        // Fallback: update only current card
+        const cur = { ...(card as any) } as Card;
+        const tags = new Set(cur.tags || []);
+        if (mode === 'archive') tags.add('Archived'); else tags.delete('Archived');
+        cur.tags = Array.from(tags);
+        await window.cards?.update?.(cur);
+        setCard(cur);
+        setDraft(toDraft(cur));
+        return;
+      }
+
+      const all: Card[] = await readAll();
+      const byId = new Map<string, Card>(all.map(c => [c.id, c]));
+      const ids: string[] = [card.id];
+      if (includeDesc) {
+        const stack = [...(card.fields.descendants || [])];
+        const seen = new Set<string>();
+        while (stack.length) {
+          const id = stack.pop()!;
+          if (seen.has(id)) continue;
+          seen.add(id);
+          ids.push(id);
+          const node = byId.get(id);
+          if (node && node.fields && Array.isArray(node.fields.children)) {
+            for (const kid of node.fields.children) stack.push(kid);
+          }
+        }
+      }
+
+      for (const id of ids) {
+        const c = byId.get(id);
+        if (!c) continue;
+        const tags = new Set(c.tags || []);
+        if (mode === 'archive') tags.add('Archived');
+        else tags.delete('Archived');
+        c.tags = Array.from(tags);
+        await window.cards?.update?.(c);
+      }
+
+      const refreshed = await window.cards?.readOne?.(card.id);
+      if (refreshed) {
+        setCard(refreshed);
+        setDraft(toDraft(refreshed));
+      }
+    } catch (e) {
+      // soft-fail
+    }
+  }
+
   // Ctrl+S / Cmd+S to save
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -241,12 +301,32 @@ export default function EditCardPage() {
       <div className="card grid" style={{ gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>Edit Card</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
             {saved && <div className="sub" aria-live="polite">Saved</div>}
             <button className="button secondary" onClick={goBack}>Back</button>
             <button className="button" onClick={handleSave} disabled={saving} title="Save (Ctrl+S)">
               {saving ? 'Saving…' : 'Save'}
             </button>
+            <div>
+              <button className="button" onClick={() => setMenuOpen(v => !v)}>
+                {hasArchivedTag(card) ? 'Unarchive ▾' : 'Archive ▾'}
+              </button>
+              {menuOpen && (
+                <div style={{ position: 'absolute', right: 0, marginTop: 4, background: 'var(--panel, #222)', border: '1px solid var(--border-strong)', borderRadius: 8, padding: 6, zIndex: 10, minWidth: 240 }}>
+                  {hasArchivedTag(card) ? (
+                    <>
+                      <button className="button" style={{ width: '100%', textAlign: 'left' }} onClick={() => { setMenuOpen(false); void applyArchiveMode('unarchive', false); }}>Unarchive Card</button>
+                      <button className="button" style={{ width: '100%', textAlign: 'left', marginTop: 6 }} onClick={() => { setMenuOpen(false); void applyArchiveMode('unarchive', true); }}>Unarchive Card & Descendants</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="button" style={{ width: '100%', textAlign: 'left' }} onClick={() => { setMenuOpen(false); void applyArchiveMode('archive', false); }}>Archive Card</button>
+                      <button className="button" style={{ width: '100%', textAlign: 'left', marginTop: 6 }} onClick={() => { setMenuOpen(false); void applyArchiveMode('archive', true); }}>Archive Card & Descendants</button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

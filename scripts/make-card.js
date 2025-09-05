@@ -316,12 +316,16 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
   const hash = Math.max(32, Number(CFG.hash) || 1024);
 
   // Transposition-aware; run engine only if needed or forced
-  const sameFenCards = arr.filter(c => c?.fields?.fen === fen && c?.deck === deckId);
-  const forcedSAN = typeof OVR[fen] === 'string' ? String(OVR[fen]) : undefined;
+  const key4 = (() => { try { return fen.split(/\s+/).slice(0,4).join(' '); } catch { return fen; } })();
+  const sameFenCards = arr.filter(c => c?.deck === deckId && typeof c?.fields?.fen === 'string' && c.fields.fen.split(/\s+/).slice(0,4).join(' ') === key4);
+  const forceEntry = OVR[key4] ?? OVR[fen];
+  const forcedSAN = (typeof forceEntry === 'string') ? String(forceEntry) : (forceEntry && typeof forceEntry === 'object' ? String(forceEntry.move || '') : undefined);
   let infos = [];
   if (!sameFenCards.length || forcedSAN) {
-    infos = await analyzeWithStockfish(fen, { depth, threads, hash, multipv }, resolveEngine);
-    if (!infos.length) throw new Error('Engine returned no PVs.');
+    infos = await analyzeWithStockfish(fen, { depth, threads, hash, multipv });
+    if (!infos.length && !sameFenCards.length && !forcedSAN) {
+      throw new Error('Engine returned no PVs.');
+    }
   }
 
   // Best line
@@ -419,7 +423,8 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
 
   // Apply forced/anchor answer selection and transposition rules
   try {
-    const chosen = ( (typeof OVR[fen] === 'string' && OVR[fen]) || (sameFenCards[0]?.fields?.answer) || bestAnswerSAN || '' ).trim();
+    const chosenForced = (() => { const v = OVR[key4] ?? OVR[fen]; if (!v) return ''; if (typeof v === 'string') return v; if (typeof v === 'object') return v.move || ''; return ''; })();
+    const chosen = ( chosenForced || (sameFenCards[0]?.fields?.answer) || bestAnswerSAN || '' ).trim();
     if (chosen && card.fields.answer !== chosen) {
       card.fields.answer = chosen;
       try {
@@ -436,13 +441,13 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
         card.fields.exampleLine = [...anchor.fields.exampleLine];
       }
     }
-    if (typeof OVR[fen] === 'string' && sameFenCards.length) {
+    if (sameFenCards.length) {
       let mutated = false;
       for (const c of sameFenCards) {
         if (c?.fields?.answer !== card.fields.answer) {
           c.fields.answer = card.fields.answer;
           try {
-            const chessY = new Chess(fen);
+            const chessY = new Chess(c.fields.fen || fen);
             const mvY = chessY.move(card.fields.answer, { sloppy: true });
             if (mvY) c.fields.answerFen = chessY.fen();
           } catch {}
