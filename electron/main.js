@@ -131,6 +131,10 @@ function formatValue(val, indent = 0, keyCtx = '') {
   const t = typeof val;
   if (t === 'string' || t === 'number' || t === 'boolean') return JSON.stringify(val);
   if (Array.isArray(val)) {
+    if (keyCtx === 'tags') {
+      // Keep tags array on a single line
+      return '[' + val.map(v => JSON.stringify(v)).join(', ') + ']';
+    }
     if (keyCtx === 'exampleLine') {
       return '[' + val.map(v => JSON.stringify(v)).join(', ') + ']';
     }
@@ -145,6 +149,9 @@ function formatValue(val, indent = 0, keyCtx = '') {
     return '[\n' + items.join(',\n') + '\n' + sp + ']';
   }
   if (typeof val === 'object') {
+    if (keyCtx === 'eval' || keyCtx === 'input' || keyCtx === 'configUsed' || keyCtx === 'engineBest' || keyCtx === 'forced') {
+      return inlineJsonObject(val);
+    }
     const keys = Object.keys(val);
     const lines = keys.map((k) => {
       const v = val[k];

@@ -2,19 +2,13 @@
   {
     "id": "c_1757244400021_ukcu",
     "deck": "black-other",
-    "tags": [
-
-    ],
+    "tags": [],
     "fields": {
       "moveSequence": "e4",
       "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
       "answer": "e5",
       "answerFen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
-      "eval": {
-        "kind": "cp",
-        "value": -20,
-        "depth": 35
-      },
+      "eval": {"kind": "cp", "value": -20, "depth": 35},
       "exampleLine": ["e5", "Nf3", "Nc6", "Bb5", "Nf6", "O-O", "Nxe4", "Re1", "Nd6", "Nxe5", "Nxe5", "Rxe5+", "Be7", "Bf1", "O-O", "d4", "Bf6", "Re1", "Nf5", "c3", "d5", "a4", "a5", "Bf4", "c6", "Nd2", "Bg5", "Bxg5", "Qxg5", "Re5", "g6", "Nf3", "Qd8", "h3", "Ng7", "Qb3", "Re8", "Rae1", "Rxe5", "dxe5"],
       "otherAnswers": [
         {"move": "c6", "eval": {"kind": "cp", "value": -27, "depth": 35}},
@@ -31,33 +25,10 @@
       "depth": 1,
       "creationCriteria": {
         "createdAt": "2025-09-07T11:26:40.021Z",
-        "input": {
-          "movesSAN": [
-            "e4"
-          ],
-          "pgn": "",
-          "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
-        },
-        "configUsed": {
-          "otherAnswersAcceptance": 0.5,
-          "maxOtherAnswerCount": 19,
-          "depth": 35,
-          "threads": 16,
-          "hash": 32768,
-          "multipv": 20,
-          "acceptanceCpWindow": 50
-        },
-        "engineBest": {
-          "move": "e5",
-          "eval": {
-            "kind": "cp",
-            "value": -20,
-            "depth": 35
-          }
-        },
-        "forced": {
-          "move": "e5"
-        },
+        "input": {"movesSAN": ["e4"], "pgn": "", "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"},
+        "configUsed": {"otherAnswersAcceptance": 0.5, "maxOtherAnswerCount": 19, "depth": 35, "threads": 16, "hash": 32768, "multipv": 20, "acceptanceCpWindow": 50},
+        "engineBest": {"move": "e5", "eval": {"kind": "cp", "value": -20, "depth": 35}},
+        "forced": {"move": "e5"},
         "enginePath": "engines/win-x64/stockfish17.1.exe"
       }
     },
