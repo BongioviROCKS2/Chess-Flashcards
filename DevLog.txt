@@ -78,4 +78,4 @@
 9/7/25:
     1 hour:
         Format cards.json to keep example line in a single row, and each other answer in its own row
-        add timer print to say how long stockfish thought when making the card (include on card?)
+        add timer print to say how long stockfish thought when making the card. include on card as creationCriteria subfield

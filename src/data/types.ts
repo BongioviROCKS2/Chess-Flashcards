@@ -19,7 +19,6 @@ export type EvalInfo = {
  *  - eval?: engine evaluation (stored raw; UI renders white-centric)
  *  - exampleLine?: SAN[] from review FEN
  *  - otherAnswers?: SAN[] alternatives
- *  - engineTimeMs?: number  // wall-clock milliseconds engine spent when creating card
  *
  * Lineage (new model):
  *  - depth: move number per spec (derived from plies)
@@ -40,7 +39,6 @@ export type CardFields = {
   eval?: EvalInfo;
   exampleLine?: string[];
   otherAnswers?: (string | { move: string; eval?: EvalInfo })[];
-  engineTimeMs?: number;
   siblingAnswers?: string[];
 
   // Lineage

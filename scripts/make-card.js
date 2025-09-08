@@ -601,7 +601,6 @@ export async function createCard({
     exampleLine,
     otherAnswers: others,
     depth: depthMove,
-    engineTimeMs: engineMs,
     creationCriteria,
     ...(parentId ? { parent: parentId } : {}),
   };
