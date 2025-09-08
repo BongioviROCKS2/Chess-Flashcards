@@ -102,9 +102,51 @@ function loadCardsArray() {
     return [];
   }
 }
+// Custom JSON formatter for cards.json
+function inlineJsonObject(obj) {
+  // Inline object with spaces after ':' and ',' for readability
+  const raw = JSON.stringify(obj);
+  return raw.replace(/:/g, ': ').replace(/,/g, ', ');
+}
+function formatValue(val, indent = 0, keyCtx = '') {
+  const sp = ' '.repeat(indent);
+  if (val === null) return 'null';
+  const t = typeof val;
+  if (t === 'string' || t === 'number' || t === 'boolean') return JSON.stringify(val);
+  if (Array.isArray(val)) {
+    if (keyCtx === 'exampleLine') {
+      // Single-line array for exampleLine
+      return '[' + val.map(v => JSON.stringify(v)).join(', ') + ']';
+    }
+    if (keyCtx === 'otherAnswers') {
+      // One item per line, each item inline
+      const items = val.map((it) => {
+        const s = (it && typeof it === 'object') ? inlineJsonObject(it) : JSON.stringify(it);
+        return sp + '  ' + s;
+      });
+      return '[\n' + items.join(',\n') + '\n' + sp + ']';
+    }
+    const items = val.map((it) => sp + '  ' + formatValue(it, indent + 2, ''));
+    return '[\n' + items.join(',\n') + '\n' + sp + ']';
+  }
+  if (typeof val === 'object') {
+    const keys = Object.keys(val);
+    const lines = keys.map((k) => {
+      const v = val[k];
+      const vStr = formatValue(v, indent + 2, k);
+      return sp + '  ' + JSON.stringify(k) + ': ' + vStr;
+    });
+    return '{\n' + lines.join(',\n') + '\n' + sp + '}';
+  }
+  return JSON.stringify(val);
+}
+function formatCardsJson(arr) {
+  return formatValue(arr, 0, '') + '\n';
+}
 function saveCardsArray(arr) {
   fs.mkdirSync(path.dirname(CARDS_PATH), { recursive: true });
-  fs.writeFileSync(CARDS_PATH, JSON.stringify(arr, null, 2) + '\n', 'utf-8');
+  const out = formatCardsJson(arr);
+  fs.writeFileSync(CARDS_PATH, out, 'utf-8');
 }
 
 // ---------- Forced Answers (FEN -> SAN) ----------
@@ -389,9 +431,12 @@ export async function createCard({
   const forceEntry = OVR[key4] ?? OVR[reviewFEN];
   const forcedSAN = (typeof forceEntry === 'string') ? String(forceEntry) : (forceEntry && typeof forceEntry === 'object' ? String(forceEntry.move || '') : undefined);
   let infos = [];
+  let engineMs = 0;
   const shouldRunEngine = !!overwriteId || !sameFenCards.length || !!forcedSAN;
   if (shouldRunEngine) {
+    const t0 = Date.now();
     infos = await analyzeWithStockfish(reviewFEN, { depth, threads, hash, multipv }, resolveEngine);
+    engineMs = Date.now() - t0;
     if (!infos.length && !sameFenCards.length && !forcedSAN && !overwriteId) {
       // If this is not an overwrite and we have no anchor and no forced answer, treat as failure
       throw new Error('Engine returned no PVs.');
@@ -531,6 +576,7 @@ export async function createCard({
         multipv,
         acceptanceCpWindow: cpWindow,
       },
+      engineTimeMs: engineMs,
       engineBest: bestAnswerSAN ? { move: bestAnswerSAN, eval: bestEval } : undefined,
       forced: (() => {
         const v = OVR[key4] ?? OVR[reviewFEN];
@@ -555,6 +601,7 @@ export async function createCard({
     exampleLine,
     otherAnswers: others,
     depth: depthMove,
+    engineTimeMs: engineMs,
     creationCriteria,
     ...(parentId ? { parent: parentId } : {}),
   };
@@ -660,6 +707,10 @@ export async function createCard({
   } catch {
     console.log(`  Other answers: (unavailable)`);
   }
+  try {
+    const secs = (engineMs / 1000).toFixed(engineMs >= 10000 ? 0 : 1);
+    console.log(`  Engine time: ${secs}s`);
+  } catch {}
 
   if (Array.isArray(exampleLine) && exampleLine.length) {
     console.log(`  Options: ${exampleLine[0]} (best)`);

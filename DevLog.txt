@@ -75,3 +75,7 @@
         store the eval of other answers
             and always store 1 other answer, except for multipv=1
         dont skip moves when manually adding cards; offer to overwrite
+9/7/25:
+    1 hour:
+        Format cards.json to keep example line in a single row, and each other answer in its own row
+        add timer print to say how long stockfish thought when making the card (include on card?)

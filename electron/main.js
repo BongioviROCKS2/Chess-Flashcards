@@ -120,9 +120,48 @@ function loadCardsArray() {
     return [];
   }
 }
+// Custom JSON formatter for cards.json
+function inlineJsonObject(obj) {
+  const raw = JSON.stringify(obj);
+  return raw.replace(/:/g, ': ').replace(/,/g, ', ');
+}
+function formatValue(val, indent = 0, keyCtx = '') {
+  const sp = ' '.repeat(indent);
+  if (val === null) return 'null';
+  const t = typeof val;
+  if (t === 'string' || t === 'number' || t === 'boolean') return JSON.stringify(val);
+  if (Array.isArray(val)) {
+    if (keyCtx === 'exampleLine') {
+      return '[' + val.map(v => JSON.stringify(v)).join(', ') + ']';
+    }
+    if (keyCtx === 'otherAnswers') {
+      const items = val.map((it) => {
+        const s = (it && typeof it === 'object') ? inlineJsonObject(it) : JSON.stringify(it);
+        return sp + '  ' + s;
+      });
+      return '[\n' + items.join(',\n') + '\n' + sp + ']';
+    }
+    const items = val.map((it) => sp + '  ' + formatValue(it, indent + 2, ''));
+    return '[\n' + items.join(',\n') + '\n' + sp + ']';
+  }
+  if (typeof val === 'object') {
+    const keys = Object.keys(val);
+    const lines = keys.map((k) => {
+      const v = val[k];
+      const vStr = formatValue(v, indent + 2, k);
+      return sp + '  ' + JSON.stringify(k) + ': ' + vStr;
+    });
+    return '{\n' + lines.join(',\n') + '\n' + sp + '}';
+  }
+  return JSON.stringify(val);
+}
+function formatCardsJson(arr) {
+  return formatValue(arr, 0, '') + '\n';
+}
 function saveCardsArray(arr) {
   fs.mkdirSync(path.dirname(CARDS_PATH), { recursive: true });
-  fs.writeFileSync(CARDS_PATH, JSON.stringify(arr, null, 2) + '\n', 'utf-8');
+  const out = formatCardsJson(arr);
+  fs.writeFileSync(CARDS_PATH, out, 'utf-8');
 }
 
 function registerIpc() {
