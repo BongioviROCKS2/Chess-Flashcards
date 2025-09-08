@@ -41,7 +41,8 @@ if (!fenRaw) {
 const fen = maybeNormalizeStartFen(fenRaw, keepSide, false);
 
 const enginePath = resolveEnginePath();
-const sf = spawn(enginePath, [], { stdio: 'pipe' });
+// Hide the Stockfish console window on Windows while piping I/O
+const sf = spawn(enginePath, [], { stdio: 'pipe', windowsHide: true, shell: false, detached: false });
 const rl = readline.createInterface({ input: sf.stdout });
 const send = (s) => sf.stdin.write(s + '\n');
 

@@ -225,7 +225,13 @@ function registerIpc() {
         const args = [script, '--moves', movesSAN.join(' ')];
         const nodeCmd = process.platform === 'win32' ? 'node.exe' : 'node';
         console.log(`[scan] make-card spawn moves=${movesSAN.length} first='${(movesSAN[0]||'')}'`);
-        const child = spawn(nodeCmd, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+        const child = spawn(nodeCmd, args, {
+          cwd: ROOT,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          windowsHide: true,
+          shell: false,
+          detached: false,
+        });
 
         let out = '';
         let settled = false;
@@ -383,54 +389,33 @@ function registerIpc() {
   ipcMain.handle('cardgen:make-card', async (_evt, payload) => {
     try {
       const script = path.resolve(ROOT, 'scripts', 'make-card.js');
-
-      if (!isDev) {
-        // Packaged: programmatic path
-        try {
-          const mod = await import(pathToFileURL(script).href);
-          const { moves, pgn } = payload || {};
-          await mod.createCard({
-            movesSAN: typeof moves === 'string' ? moves.trim().split(/\s+/).filter(Boolean) : Array.isArray(moves) ? moves : [],
-            pgn: typeof pgn === 'string' ? pgn : '',
-            resolveEngine: { baseDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..'), packaged: app.isPackaged },
-          });
-          return { ok: true, message: 'Card created.' };
-        } catch (e) {
-          return { ok: false, message: e?.message || 'Programmatic createCard failed' };
-        }
-      }
-
-      // Dev: spawn Node (keeps your existing behavior)
-      const args = [script];
-      if (payload?.moves)   { args.push('--moves', String(payload.moves)); }
-      if (payload?.pgn)     { args.push('--pgn', String(payload.pgn)); }
-      if (payload?.fen)     { args.push('--fen', String(payload.fen)); }
-
-      const cfg = payload?.config || {};
-      if (typeof cfg.otherAnswersAcceptance === 'number') args.push('--accept', String(cfg.otherAnswersAcceptance));
-      if (typeof cfg.maxOtherAnswerCount   === 'number') args.push('--moac',   String(cfg.maxOtherAnswerCount));
-      if (typeof cfg.depth                 === 'number') args.push('--depth',  String(cfg.depth));
-      if (typeof cfg.threads               === 'number') args.push('--threads',String(cfg.threads));
-      if (typeof cfg.hash                  === 'number') args.push('--hash',   String(cfg.hash));
-
-      const nodeCmd = process.platform === 'win32' ? 'node.exe' : 'node';
-
-      return await new Promise((resolve) => {
-        const child = spawn(nodeCmd, args, { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-        let stdout = '', stderr = '';
-        child.stdout.on('data', d => { stdout += d.toString(); });
-        child.stderr.on('data', d => { stderr += d.toString(); });
-        child.on('close', (code) => {
-          if (code === 0) resolve({ ok: true, message: stdout.trim() || 'Card created.' });
-          else resolve({ ok: false, message: (stderr.trim() || `make-card exited with code ${code}`) });
-        });
-        child.on('error', (err) => {
-          resolve({ ok: false, message: `Failed to start Node: ${err?.message || String(err)}` });
-        });
+      const mod = await import(pathToFileURL(script).href);
+      const { moves, pgn, fen, config, duplicateStrategy } = payload || {};
+      // Be tolerant of callers: accept either duplicateStrategy or legacy dup
+      const dupFromPayload = (typeof duplicateStrategy === 'string' && duplicateStrategy)
+        || (typeof (payload?.dup) === 'string' && payload.dup)
+        || 'skip';
+      const movesList = typeof moves === 'string' ? moves.trim().split(/\s+/).filter(Boolean) : Array.isArray(moves) ? moves : [];
+      console.log('[ipc:cardgen:make-card] programmatic call', {
+        dup: dupFromPayload,
+        movesCount: Array.isArray(movesList) ? movesList.length : 0,
+        hasPGN: !!(pgn && String(pgn).trim()),
+        hasFEN: !!(fen && String(fen).trim()),
+        cfg: config ? { acc: config.otherAnswersAcceptance, moac: config.maxOtherAnswerCount, depth: config.depth, threads: config.threads, hash: config.hash } : null,
       });
+      await mod.createCard({
+        movesSAN: movesList,
+        pgn: typeof pgn === 'string' ? pgn : '',
+        fen: typeof fen === 'string' ? fen : '',
+        config: (config && typeof config === 'object') ? config : undefined,
+        resolveEngine: { baseDir: app.isPackaged ? process.resourcesPath : path.join(__dirname, '..'), packaged: app.isPackaged },
+        duplicateStrategy: dupFromPayload,
+      });
+      console.log('[ipc:cardgen:make-card] createCard finished');
+      return { ok: true, message: 'Card created.' };
     } catch (e) {
-      console.error('[cardgen:make-card] failed:', e);
-      return { ok: false, message: e?.message || 'Unknown error' };
+      console.error('[cardgen:make-card] failed (programmatic only):', e);
+      return { ok: false, message: e?.message || 'Programmatic createCard failed' };
     }
   });
 

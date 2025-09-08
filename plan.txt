@@ -1,3 +1,5 @@
+Format cards.json to keep example line in a single row, and each other answer in its own row
+ad timer print to say how long stockfish thought when making the card (include on card?)
 implement correct display order (oldest due date?)
 implement correct new card display order (child of longest interval parent?)
 improve scheduling (FSRS?)
@@ -8,6 +10,7 @@ add/remove items from the file,edit,view,window,help bar on tooltips
 add a field to track sibling answers
 sibling card should minimize differences
     siblings are cards that share a parent. so the previous review position in the move sequence is the same, but the opponent played a different response after it, thus creating a different card
+    "sharing a parent" includes transpositions
     it should be preferred that an answer that meets the "other answer" criteria is selected if it is the answer on a sibling card
         in other words, sibling cards should prioritize having the same answer, if possible, so as to reduce the need to memorize more unique cards (if siblings share answers, it is easier to recall that the move you should play next, no matter the opponent response, is the same.)
 cleanup files that aren't needed

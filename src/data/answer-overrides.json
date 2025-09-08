@@ -10,5 +10,9 @@
   "rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq -": {
     "move": "d5",
     "pgn": "1. d4"
+  },
+  "r1b1kbnr/pp1n1ppp/4p3/1BPpq3/1P6/4B3/P1P2PPP/RN1QK1NR w KQkq -": {
+    "move": "a3",
+    "pgn": "e4 c6 d4 d5 e5 c5 dxc5 e6 Be3 Nd7 Bb5 Qc7 b4 Qxe5"
   }
 }

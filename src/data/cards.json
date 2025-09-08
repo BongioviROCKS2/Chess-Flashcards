@@ -1,6 +1,6 @@
 [
   {
-    "id": "c_1757049653057_ep9r",
+    "id": "c_1757244400021_ukcu",
     "deck": "black-other",
     "tags": [],
     "fields": {
@@ -10,38 +10,165 @@
       "answerFen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2",
       "eval": {
         "kind": "cp",
-        "value": -32,
-        "depth": 15
+        "value": -20,
+        "depth": 35
       },
       "exampleLine": [
         "e5",
         "Nf3",
         "Nc6",
-        "Bc4",
+        "Bb5",
         "Nf6",
-        "Ng5",
-        "d5",
-        "exd5",
-        "Na5",
-        "Bb5+",
-        "Bd7",
-        "Qe2",
-        "Be7",
-        "Nf3",
-        "Nxd5",
-        "Bxd7+",
-        "Qxd7",
+        "O-O",
+        "Nxe4",
+        "Re1",
+        "Nd6",
         "Nxe5",
-        "Qe6",
+        "Nxe5",
+        "Rxe5+",
+        "Be7",
+        "Bf1",
         "O-O",
-        "O-O",
-        "Re1"
+        "d4",
+        "Bf6",
+        "Re1",
+        "Nf5",
+        "c3",
+        "d5",
+        "a4",
+        "a5",
+        "Bf4",
+        "c6",
+        "Nd2",
+        "Bg5",
+        "Bxg5",
+        "Qxg5",
+        "Re5",
+        "g6",
+        "Nf3",
+        "Qd8",
+        "h3",
+        "Ng7",
+        "Qb3",
+        "Re8",
+        "Rae1",
+        "Rxe5",
+        "dxe5"
       ],
       "otherAnswers": [
-        "c5",
-        "e6"
+        {
+          "move": "c6",
+          "eval": {
+            "kind": "cp",
+            "value": -27,
+            "depth": 35
+          }
+        },
+        {
+          "move": "e6",
+          "eval": {
+            "kind": "cp",
+            "value": -31,
+            "depth": 35
+          }
+        },
+        {
+          "move": "c5",
+          "eval": {
+            "kind": "cp",
+            "value": -32,
+            "depth": 35
+          }
+        },
+        {
+          "move": "a6",
+          "eval": {
+            "kind": "cp",
+            "value": -40,
+            "depth": 35
+          }
+        },
+        {
+          "move": "g6",
+          "eval": {
+            "kind": "cp",
+            "value": -43,
+            "depth": 35
+          }
+        },
+        {
+          "move": "d6",
+          "eval": {
+            "kind": "cp",
+            "value": -49,
+            "depth": 35
+          }
+        },
+        {
+          "move": "Nc6",
+          "eval": {
+            "kind": "cp",
+            "value": -54,
+            "depth": 35
+          }
+        },
+        {
+          "move": "h6",
+          "eval": {
+            "kind": "cp",
+            "value": -59,
+            "depth": 35
+          }
+        },
+        {
+          "move": "d5",
+          "eval": {
+            "kind": "cp",
+            "value": -61,
+            "depth": 35
+          }
+        },
+        {
+          "move": "Nf6",
+          "eval": {
+            "kind": "cp",
+            "value": -64,
+            "depth": 35
+          }
+        }
       ],
-      "depth": 1
+      "depth": 1,
+      "creationCriteria": {
+        "createdAt": "2025-09-07T11:26:40.021Z",
+        "input": {
+          "movesSAN": [
+            "e4"
+          ],
+          "pgn": "",
+          "fen": "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+        },
+        "configUsed": {
+          "otherAnswersAcceptance": 0.5,
+          "maxOtherAnswerCount": 19,
+          "depth": 35,
+          "threads": 16,
+          "hash": 32768,
+          "multipv": 20,
+          "acceptanceCpWindow": 50
+        },
+        "engineBest": {
+          "move": "e5",
+          "eval": {
+            "kind": "cp",
+            "value": -20,
+            "depth": 35
+          }
+        },
+        "forced": {
+          "move": "e5"
+        },
+        "enginePath": "engines/win-x64/stockfish17.1.exe"
+      }
     },
     "due": "new"
   }

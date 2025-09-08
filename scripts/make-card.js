@@ -19,7 +19,7 @@
  * - NEW: Removes `last`; fills `parent` when possible; also updates the parent’s `children` list.
  *
  * NEW (packaging-safe):
- * - Export `createCard({ movesSAN, pgn, resolveEngine })` to call from Electron without spawning Node.
+ * - Export `createCard({ movesSAN, moves, pgn, fen, resolveEngine })` to call from Electron without spawning Node.
  */
 
 import fs from 'node:fs';
@@ -54,6 +54,13 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv);
 const MOVES_RAW = args['--moves'];
 const PGN_RAW   = args['--pgn'];
+const FEN_RAW   = args['--fen'];
+// Per-run overrides (from Electron dev spawn)
+const DEPTH_ARG   = args['--depth'];
+const THREADS_ARG = args['--threads'];
+const HASH_ARG    = args['--hash'];
+const ACCEPT_ARG  = args['--accept'];
+const MOAC_ARG    = args['--moac'];
 
 // ---------- Config ----------
 function loadConfig() {
@@ -149,7 +156,13 @@ function computeDepthFromPlies(plies) {
 function startEngine(resolveOpts = {}) {
   const exe = resolveEnginePath(resolveOpts);
   if (!fs.existsSync(exe)) throw new Error(`Stockfish not found at: ${exe}`);
-  const child = spawn(exe, [], { stdio: ['pipe', 'pipe', 'inherit'] });
+  // Run Stockfish fully in the background. On Windows, windowsHide prevents a new console window.
+  const child = spawn(exe, [], {
+    stdio: ['pipe', 'pipe', 'pipe'],
+    windowsHide: true,
+    shell: false,
+    detached: false,
+  });
   child.stdin.setDefaultEncoding('utf-8');
   return child;
 }
@@ -205,7 +218,7 @@ async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }, reso
     };
 
     // Safety timeout to avoid hangs (per-position)
-    const TIMEOUT_MS = 8000;
+    const TIMEOUT_MS = 28800000;
     const timer = setTimeout(() => { finish(true); }, TIMEOUT_MS);
 
     child.stdout.on('data', (buf) => {
@@ -223,6 +236,14 @@ async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }, reso
         }
       }
     });
+
+    // Log engine errors without surfacing a console window
+    try {
+      child.stderr.on('data', (buf) => {
+        const s = String(buf).trim();
+        if (s) console.warn('[stockfish:stderr]', s);
+      });
+    } catch {}
 
     child.once('error', () => { clearTimeout(timer); finish(false); });
 
@@ -251,6 +272,17 @@ function buildReviewFromSANs(sans) {
   const depthMove = computeDepthFromPlies(plies);
   const deckId = stm === 'w' ? 'white-other' : 'black-other';
   return { fen, stm, sans, depthMove, deckId };
+}
+
+function buildReviewFromFEN(fenInput) {
+  const fen = String(fenInput || '').trim();
+  if (!fen) throw new Error('FEN input is empty');
+  const parts = fen.split(/\s+/);
+  const stm = parts[1] || 'w';
+  const fullmove = parseInt(parts[5], 10);
+  const depthMove = Number.isFinite(fullmove) ? fullmove : 0;
+  const deckId = stm === 'w' ? 'white-other' : 'black-other';
+  return { fen, stm, sans: [], depthMove, deckId };
 }
 
 /**
@@ -285,11 +317,24 @@ function formatEvalDisplay(score) {
 }
 
 // ---------- Programmatic API (exported) ----------
-export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} } = {}) {
+export async function createCard({
+  movesSAN = [],
+  moves = '',           // NEW: string alias accepted programmatically
+  pgn = '',
+  fen = '',
+  config = undefined,
+  resolveEngine = {},
+  duplicateStrategy = 'skip'
+} = {}) {
   // Build SAN list
   let sans = [];
-  if (Array.isArray(movesSAN) && movesSAN.length) {
+  if (typeof fen === 'string' && fen.trim()) {
+    sans = []; // explicit FEN mode, ignore moves/pgn
+  } else if (Array.isArray(movesSAN) && movesSAN.length) {
     sans = movesSAN.slice();
+  } else if (typeof moves === 'string' && moves.trim()) {
+    // NEW: accept moves as a space/comma separated string
+    sans = movesToSANArray(moves);
   } else if (typeof pgn === 'string' && pgn.trim()) {
     sans = pgnToSANArray(pgn);
   } else {
@@ -297,33 +342,58 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
   }
 
   // Review info
-  const { fen, deckId, depthMove } = buildReviewFromSANs(sans);
+  const review = (typeof fen === 'string' && fen.trim())
+    ? buildReviewFromFEN(fen)
+    : buildReviewFromSANs(sans);
+  const { fen: reviewFEN, deckId, depthMove } = review;
 
-  // Duplicate check (by exact move sequence for this deck)
+  // Load cards and compute path key (duplicate handling occurs after config is loaded)
   const arr = loadCardsArray();
   const pathKey = sans.join(' ');
-  const dupPath = arr.find(c => c?.fields?.moveSequence === pathKey && c?.deck === deckId);
-  if (dupPath) {
-    console.log(`[make-card] Skipped: moveSequence already exists in deck "${deckId}" as card ${dupPath.id}`);
-    console.log(`  PGN: ${pathKey}`);
-    return { ok: true, skipped: true, deckId, existingId: dupPath.id };
-  }
 
   // Stockfish config
-  const multipv = 1 + Math.max(0, Number(CFG.maxOtherAnswerCount) || 0);
-  const depth = Math.max(1, Number(CFG.depth) || 25);
-  const threads = Math.max(1, Number(CFG.threads) || 1);
-  const hash = Math.max(32, Number(CFG.hash) || 1024);
+  const baseCfg = CFG;
+  const runCfg = {
+    otherAnswersAcceptance: Number((config && config.otherAnswersAcceptance) ?? baseCfg.otherAnswersAcceptance),
+    maxOtherAnswerCount:   Number((config && config.maxOtherAnswerCount)   ?? baseCfg.maxOtherAnswerCount),
+    depth:                 Number((config && config.depth)                 ?? baseCfg.depth),
+    threads:               Number((config && config.threads)               ?? baseCfg.threads),
+    hash:                  Number((config && config.hash)                  ?? baseCfg.hash),
+  };
+  const multipv = 1 + Math.max(0, Number(runCfg.maxOtherAnswerCount) || 0);
+  const depth = Math.max(1, Number(runCfg.depth) || 25);
+  const threads = Math.max(1, Number(runCfg.threads) || 1);
+  const hash = Math.max(32, Number(runCfg.hash) || 1024);
+
+  // Duplicate handling (by exact move sequence for this deck)
+  console.log(`[make-card] createCard: deck=${deckId} pathKey='${pathKey}' dupStrategy='${duplicateStrategy}'`);
+  let overwriteId = null;
+  const dupPath = arr.find(c => c?.fields?.moveSequence === pathKey && c?.deck === deckId);
+  if (dupPath) {
+    const mode = String(duplicateStrategy || 'skip');
+    if (mode === 'skip') {
+      console.log(`[make-card] duplicate detected (card ${dupPath.id}) -> skip`);
+      return { ok: true, skipped: true, deckId, existingId: dupPath.id };
+    } else if (mode === 'overwrite') {
+      overwriteId = dupPath.id;
+      console.log(`[make-card] duplicate detected (card ${dupPath.id}) -> overwrite in-place`);
+    } else {
+      console.log(`[make-card] duplicate detected (card ${dupPath.id}) -> unsupported mode '${mode}', default to skip`);
+      return { ok: true, skipped: true, deckId, existingId: dupPath.id };
+    }
+  }
 
   // Transposition-aware; run engine only if needed or forced
-  const key4 = (() => { try { return fen.split(/\s+/).slice(0,4).join(' '); } catch { return fen; } })();
+  const key4 = (() => { try { return reviewFEN.split(/\s+/).slice(0,4).join(' '); } catch { return reviewFEN; } })();
   const sameFenCards = arr.filter(c => c?.deck === deckId && typeof c?.fields?.fen === 'string' && c.fields.fen.split(/\s+/).slice(0,4).join(' ') === key4);
-  const forceEntry = OVR[key4] ?? OVR[fen];
+  const forceEntry = OVR[key4] ?? OVR[reviewFEN];
   const forcedSAN = (typeof forceEntry === 'string') ? String(forceEntry) : (forceEntry && typeof forceEntry === 'object' ? String(forceEntry.move || '') : undefined);
   let infos = [];
-  if (!sameFenCards.length || forcedSAN) {
-    infos = await analyzeWithStockfish(fen, { depth, threads, hash, multipv });
-    if (!infos.length && !sameFenCards.length && !forcedSAN) {
+  const shouldRunEngine = !!overwriteId || !sameFenCards.length || !!forcedSAN;
+  if (shouldRunEngine) {
+    infos = await analyzeWithStockfish(reviewFEN, { depth, threads, hash, multipv }, resolveEngine);
+    if (!infos.length && !sameFenCards.length && !forcedSAN && !overwriteId) {
+      // If this is not an overwrite and we have no anchor and no forced answer, treat as failure
       throw new Error('Engine returned no PVs.');
     }
   }
@@ -332,7 +402,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
   let bestInfo, bestSanLine, bestAnswerSAN, bestEval;
   if (infos.length) {
     bestInfo = infos.find(o => (o?.multipv || 1) === 1) || infos[0];
-    bestSanLine = uciToSanLine(fen, bestInfo.pv);
+    bestSanLine = uciToSanLine(reviewFEN, bestInfo.pv);
     bestAnswerSAN = bestSanLine[0] || '';
     bestEval = bestInfo.score
       ? { kind: bestInfo.score.kind, value: bestInfo.score.value, depth: bestInfo.depth }
@@ -344,7 +414,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
   }
 
   // Other answers (unique SAN, within acceptance window)
-  const cpWindow = Math.round(100 * (Number(CFG.otherAnswersAcceptance) || 0.2)); // in centipawns
+  const cpWindow = Math.round(100 * (Number(runCfg.otherAnswersAcceptance) || 0.2)); // in centipawns
   const others = [];
   const seen = new Set([bestAnswerSAN]);
 
@@ -353,7 +423,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
     if (idx === 1) continue;
     if (!it.score || !it.pv?.length) continue;
 
-    const sanLine = uciToSanLine(fen, it.pv);
+    const sanLine = uciToSanLine(reviewFEN, it.pv);
     const ans = sanLine[0];
     if (!ans || seen.has(ans)) continue;
 
@@ -371,7 +441,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
     if (keep) {
       seen.add(ans);
       others.push(ans);
-      if (others.length >= CFG.maxOtherAnswerCount) break;
+      if (others.length >= runCfg.maxOtherAnswerCount) break;
     }
   }
 
@@ -381,10 +451,49 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
     if (Array.isArray(anchor?.fields?.otherAnswers)) {
       for (const x of anchor.fields.otherAnswers) {
         if (!seen.has(x)) others.push(x);
-        if (others.length >= CFG.maxOtherAnswerCount) break;
+        if (others.length >= runCfg.maxOtherAnswerCount) break;
       }
     }
   }
+
+  // Normalize otherAnswers to objects with evals and ensure at least one option
+  try {
+    // Build a SAN -> eval map from engine infos for alternatives
+    const altEvalMap = new Map();
+    for (const it of infos || []) {
+      const idx = it?.multipv || 1;
+      if (idx === 1 || !it.pv || !it.pv.length) continue;
+      const sanLine = uciToSanLine(reviewFEN, it.pv);
+      const ans = sanLine[0];
+      if (!ans) continue;
+      altEvalMap.set(ans, it.score ? { kind: it.score.kind, value: it.score.value, depth: it.depth } : undefined);
+    }
+
+    // Convert legacy string list into [{move, eval}] form
+    let othersObjs = [];
+    for (const item of others) {
+      if (typeof item === 'string') {
+        const ev = altEvalMap.get(item);
+        othersObjs.push({ move: item, eval: ev });
+      } else if (item && typeof item === 'object' && item.move) {
+        othersObjs.push(item);
+      }
+    }
+
+    // Ensure at least one other answer exists (only when MultiPV > 1)
+    if (othersObjs.length === 0 && multipv > 1 && infos && infos.length) {
+      const alt = infos.find(o => (o?.multipv || 1) > 1);
+      if (alt && alt.pv && alt.pv.length) {
+        const sanLine = uciToSanLine(reviewFEN, alt.pv);
+        const ans = sanLine[0];
+        if (ans) othersObjs.push({ move: ans, eval: alt.score ? { kind: alt.score.kind, value: alt.score.value, depth: alt.depth } : undefined });
+      }
+    }
+
+    // Replace others with normalized
+    others.length = 0;
+    for (const o of othersObjs) others.push(o);
+  } catch {}
 
   // Example line = best PV (as SAN)
   const exampleLine = bestSanLine || [];
@@ -392,7 +501,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
   // Answer FEN (apply best move)
   let answerFen;
   if (bestAnswerSAN) {
-    const chess = new Chess(fen);
+    const chess = new Chess(reviewFEN);
     const mv = chess.move(bestAnswerSAN);
     if (mv) answerFen = chess.fen();
   }
@@ -404,38 +513,81 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
     if (parent) parentId = parent.id;
   }
 
+  // Capture creation criteria for reproducibility
+  const creationCriteria = (() => {
+    const criteria = {
+      createdAt: new Date().toISOString(),
+      input: {
+        movesSAN: Array.isArray(sans) ? sans.slice() : [],
+        pgn: (typeof pgn === 'string' ? pgn : ''),
+        fen: reviewFEN,
+      },
+      configUsed: {
+        otherAnswersAcceptance: runCfg.otherAnswersAcceptance,
+        maxOtherAnswerCount: runCfg.maxOtherAnswerCount,
+        depth,
+        threads,
+        hash,
+        multipv,
+        acceptanceCpWindow: cpWindow,
+      },
+      engineBest: bestAnswerSAN ? { move: bestAnswerSAN, eval: bestEval } : undefined,
+      forced: (() => {
+        const v = OVR[key4] ?? OVR[reviewFEN];
+        if (!v) return undefined;
+        const move = (typeof v === 'string') ? v : (v && v.move) ? v.move : undefined;
+        return move ? { move } : undefined;
+      })(),
+    };
+    try {
+      criteria.enginePath = resolveEnginePath(resolveEngine);
+    } catch {}
+    return criteria;
+  })();
+
   // Build fields
   const fields = {
     moveSequence: sans.join(' '),
-    fen,
+    fen: reviewFEN,
     answer: bestAnswerSAN,
     answerFen,
     eval: bestEval,
     exampleLine,
     otherAnswers: others,
     depth: depthMove,
+    creationCriteria,
     ...(parentId ? { parent: parentId } : {}),
   };
 
-  // New card
-  const id = `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  // New card (or overwrite existing)
+  let id = overwriteId || `c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const card = { id, deck: deckId, tags: [], fields, due: 'new' };
 
   // Apply forced/anchor answer selection and transposition rules
   try {
-    const chosenForced = (() => { const v = OVR[key4] ?? OVR[fen]; if (!v) return ''; if (typeof v === 'string') return v; if (typeof v === 'object') return v.move || ''; return ''; })();
+    const chosenForced = (() => { const v = OVR[key4] ?? OVR[reviewFEN]; if (!v) return ''; if (typeof v === 'string') return v; if (typeof v === 'object') return v.move || ''; return ''; })();
     const chosen = ( chosenForced || (sameFenCards[0]?.fields?.answer) || bestAnswerSAN || '' ).trim();
     if (chosen && card.fields.answer !== chosen) {
       card.fields.answer = chosen;
       try {
-        const chessX = new Chess(fen);
+        const chessX = new Chess(reviewFEN);
         const mvX = chessX.move(chosen, { sloppy: true });
         if (mvX) card.fields.answerFen = chessX.fen();
       } catch {}
     }
+    // If a forced answer is applied and it's not the engine's best, include the best in otherAnswers
+    if (chosenForced && bestAnswerSAN && chosen !== bestAnswerSAN) {
+      const list = Array.isArray(card.fields.otherAnswers) ? card.fields.otherAnswers : [];
+      const alreadyHasBest = list.some(o => (typeof o === 'string' ? o : o?.move) === bestAnswerSAN);
+      if (!alreadyHasBest) {
+        card.fields.otherAnswers = [{ move: bestAnswerSAN, eval: bestEval }, ...list];
+      }
+    }
     if ((!infos || !infos.length) && sameFenCards.length) {
       const anchor = sameFenCards[0];
-      if (Array.isArray(anchor?.fields?.otherAnswers)) card.fields.otherAnswers = [...anchor.fields.otherAnswers];
+      if (Array.isArray(anchor?.fields?.otherAnswers)) {
+        card.fields.otherAnswers = anchor.fields.otherAnswers.map(x => (typeof x === 'string') ? { move: x, eval: undefined } : x);
+      }
       if (!card.fields.eval && anchor?.fields?.eval) card.fields.eval = anchor.fields.eval;
       if ((!card.fields.exampleLine || !card.fields.exampleLine.length) && Array.isArray(anchor?.fields?.exampleLine)) {
         card.fields.exampleLine = [...anchor.fields.exampleLine];
@@ -447,7 +599,7 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
         if (c?.fields?.answer !== card.fields.answer) {
           c.fields.answer = card.fields.answer;
           try {
-            const chessY = new Chess(c.fields.fen || fen);
+            const chessY = new Chess(c.fields.fen || reviewFEN);
             const mvY = chessY.move(card.fields.answer, { sloppy: true });
             if (mvY) c.fields.answerFen = chessY.fen();
           } catch {}
@@ -467,19 +619,47 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
     }
   }
 
-  // Append to cards.json
-  arr.push(card);
+  // Append or overwrite in cards.json
+  if (overwriteId) {
+    const idx = arr.findIndex(c => c.id === overwriteId);
+    console.log(`[make-card] overwrite path: overwriteId=${overwriteId} idx=${idx}`);
+    if (idx >= 0) {
+      // Overwrite entirely (do not preserve tags or due)
+      const prev = arr[idx];
+      const next = { id: prev.id, deck: deckId, tags: [], fields: card.fields, due: 'new' };
+      arr[idx] = next;
+      console.log(`[make-card] overwrote existing card id=${prev.id}`);
+    } else {
+      console.log(`[make-card] overwriteId not found; pushing as new card id=${id}`);
+      arr.push(card);
+    }
+  } else {
+    arr.push(card);
+    console.log(`[make-card] appended new card id=${id}`);
+  }
   saveCardsArray(arr);
 
   // Console output summary
-  console.log(`[make-card] Added card ${id} to ${path.relative(ROOT, CARDS_PATH)}`);
+  console.log(`${overwriteId ? '[make-card] Overwrote card' : '[make-card] Added card'} ${id} to ${path.relative(ROOT, CARDS_PATH)}`);
   console.log(`  Deck: ${deckId}`);
-  console.log(`  Review FEN: ${fen}`);
+  console.log(`  Review FEN: ${reviewFEN}`);
   console.log(`  Depth (move number): ${depthMove}`);
   console.log(`  Parent: ${parentId || '(none)'}`);
   console.log(`  Answer: ${card.fields.answer}`);
   console.log(`  Example line: ${exampleLine.join(' ') || '(none)'}`);
-  console.log(`  Other answers: ${others.join(', ') || '(none)'}`);
+  try {
+    const othersOut = (Array.isArray(others) && others.length)
+      ? others.map(o => {
+          if (typeof o === 'string') return o;
+          const mv = o?.move || '';
+          const ev = o?.eval ? ` ${formatEvalDisplay(o.eval)}` : '';
+          return `${mv}${ev}`.trim();
+        }).join(', ')
+      : '(none)';
+    console.log(`  Other answers: ${othersOut}`);
+  } catch {
+    console.log(`  Other answers: (unavailable)`);
+  }
 
   if (Array.isArray(exampleLine) && exampleLine.length) {
     console.log(`  Options: ${exampleLine[0]} (best)`);
@@ -492,7 +672,16 @@ export async function createCard({ movesSAN = [], pgn = '', resolveEngine = {} }
 async function main() {
   const movesSAN = typeof MOVES_RAW !== 'undefined' ? movesToSANArray(MOVES_RAW) : [];
   const pgn = (movesSAN.length ? '' : (PGN_RAW || ''));
-  await createCard({ movesSAN, pgn });
+  const fen = (typeof FEN_RAW === 'string' ? FEN_RAW : '');
+  // Build per-run config overrides (if provided via CLI)
+  const cfgOverride = {};
+  if (typeof ACCEPT_ARG  !== 'undefined') cfgOverride.otherAnswersAcceptance = Number(ACCEPT_ARG);
+  if (typeof MOAC_ARG    !== 'undefined') cfgOverride.maxOtherAnswerCount   = Number(MOAC_ARG);
+  if (typeof DEPTH_ARG   !== 'undefined') cfgOverride.depth                 = Number(DEPTH_ARG);
+  if (typeof THREADS_ARG !== 'undefined') cfgOverride.threads               = Number(THREADS_ARG);
+  if (typeof HASH_ARG    !== 'undefined') cfgOverride.hash                  = Number(HASH_ARG);
+  // CLI path is for development only; duplicates are always skipped.
+  await createCard({ movesSAN, pgn, fen, config: cfgOverride, duplicateStrategy: 'skip' });
 }
 
 const isCli = (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url);

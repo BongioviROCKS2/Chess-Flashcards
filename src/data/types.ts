@@ -38,7 +38,7 @@ export type CardFields = {
   answerFen?: string;
   eval?: EvalInfo;
   exampleLine?: string[];
-  otherAnswers?: string[];
+  otherAnswers?: (string | { move: string; eval?: EvalInfo })[];
   siblingAnswers?: string[];
 
   // Lineage
@@ -46,6 +46,8 @@ export type CardFields = {
   parent?: string;
   children?: string[];     // immediate children
   descendants?: string[];  // transitive closure of children
+  // creation metadata
+  creationCriteria?: any;
 
   // (Legacy/optional scratch fields allowed but not required)
   parentInterval?: number;

@@ -31,7 +31,15 @@ type Draft = {
   };
 };
 
-function arrToLine(a?: string[] | null): string { return (a ?? []).join(' '); }
+function arrToLine(a?: (string | { move?: string })[] | null): string {
+  if (!Array.isArray(a) || a.length === 0) return '';
+  const out: string[] = [];
+  for (const it of a) {
+    if (typeof it === 'string') out.push(it);
+    else if (it && typeof it === 'object' && typeof (it as any).move === 'string') out.push((it as any).move);
+  }
+  return out.join(' ');
+}
 function lineToArr(s: string): string[] { return s.split(/\s+/).map(t => t.trim()).filter(Boolean); }
 function tagsToLine(tags?: string[]): string { return (tags ?? []).join(', '); }
 function lineToTags(s: string): string[] { return s.split(',').map(t => t.trim()).filter(Boolean); }
@@ -169,7 +177,10 @@ function cardMatchesSearch(c: Card, crits: Criterion[]): boolean {
       case 'fen': return (c.fields.fen || '').toLowerCase();
       case 'answer': return (c.fields.answer || '').toLowerCase();
       case 'answerfen': return (c.fields.answerFen || '').toLowerCase();
-      case 'otheranswers': return (c.fields.otherAnswers || []).join(' ').toLowerCase();
+      case 'otheranswers': {
+        const s = arrToLine(c.fields.otherAnswers);
+        return s.toLowerCase();
+      }
       case 'siblinganswers': return (c.fields.siblingAnswers || []).join(' ').toLowerCase();
       case 'exampleline': return (c.fields.exampleLine || []).join(' ').toLowerCase();
       case 'depth': return String((c.fields as any).depth ?? '').toLowerCase();
@@ -178,6 +189,7 @@ function cardMatchesSearch(c: Card, crits: Criterion[]): boolean {
       case 'evaldepth': return String((c.fields as any).eval?.depth ?? '').toLowerCase();
       case 'state': return getCardState(c);
       default:
+        const other = arrToLine(c.fields.otherAnswers);
         return [
           c.id,
           c.deck,
@@ -185,10 +197,10 @@ function cardMatchesSearch(c: Card, crits: Criterion[]): boolean {
           c.fields.moveSequence,
           c.fields.fen,
           c.fields.answer,
-          (c.fields.otherAnswers || []).join(' '),
+          other,
           (c.fields.exampleLine || []).join(' '),
         ].join(' ').toLowerCase();
-    }
+      }
   };
   return crits.every(cr => {
     if (cr.key) return String(get(cr.key)).includes(cr.value);
@@ -349,7 +361,7 @@ export default function CollectionPage() {
     { key: 'due', label: 'Due', width: 200, render: c => String((c as any).due ?? '') },
     { key: 'tags', label: 'Tags', width: 160, render: c => (c.tags || []).join(', ') },
     { key: 'answer', label: 'Answer', width: 140, render: c => c.fields.answer },
-    { key: 'other', label: 'Other Answers', width: 180, render: c => (c.fields.otherAnswers || []).join(' ') },
+    { key: 'other', label: 'Other Answers', width: 180, render: c => arrToLine(c.fields.otherAnswers) },
     { key: 'pgn', label: 'Moves (PGN)', width: 220, render: c => c.fields.moveSequence },
     { key: 'fen', label: 'Review FEN', width: 340, render: c => c.fields.fen },
     { key: 'depth', label: 'Depth', width: 80, render: c => String((c.fields as any).depth ?? '') },

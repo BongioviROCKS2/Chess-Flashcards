@@ -14,6 +14,7 @@ declare global {
         moves?: string;
         pgn?: string;
         fen?: string;
+        duplicateStrategy?: 'skip' | 'overwrite' | 'prompt';
         config?: {
           otherAnswersAcceptance: number;
           maxOtherAnswerCount: number;

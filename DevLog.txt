@@ -66,3 +66,12 @@
             also archive/unarchive button to edit card page
             add archive tag to collection page
             add options to remove forced answer with/without archive
+9/5/25:
+    1 hour:
+        fix how stockfish doesnt use full engine power/settings
+9/6/25:
+    2 hours:
+        when an answer is forced and that answer was not the best answer, the best answer should be included with the next best answer in the other answers field
+        store the eval of other answers
+            and always store 1 other answer, except for multipv=1
+        dont skip moves when manually adding cards; offer to overwrite

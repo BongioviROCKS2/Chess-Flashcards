@@ -40,8 +40,14 @@ type Draft = {
   roDescendants: string;  // display-only (space-separated ids)
 };
 
-function arrToLine(a?: string[] | null): string {
-  return (a ?? []).join(' ');
+function arrToLine(a?: (string | { move?: string })[] | null): string {
+  if (!Array.isArray(a) || a.length === 0) return '';
+  const out: string[] = [];
+  for (const it of a) {
+    if (typeof it === 'string') out.push(it);
+    else if (it && typeof it === 'object' && typeof (it as any).move === 'string') out.push((it as any).move);
+  }
+  return out.join(' ');
 }
 
 function lineToArr(s: string): string[] {

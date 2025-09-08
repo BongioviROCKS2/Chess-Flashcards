@@ -1,10 +1,11 @@
 // src/pages/ManualAddPage.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBackKeybind } from '../hooks/useBackKeybind';
 import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import { useSettings } from '../state/settings';
 import type { Card } from '../data/types';
+import { Chess } from 'chess.js';
 
 type EvalKind = 'cp' | 'mate';
 
@@ -50,13 +51,19 @@ type CardgenConfig = {
 type CardgenBridge = {
   saveConfig?: (cfg: CardgenConfig) => Promise<boolean>;
   makeCard?: (args: {
-    moves?: string;
+    // IMPORTANT: programmatic API prefers movesSAN (string[])
+    movesSAN?: string[];
+    // PGN or FEN are also valid
     pgn?: string;
     fen?: string;
+    // (legacy/bridge calls sometimes send moves as a string; our code converts)
+    moves?: string;
     config?: CardgenConfig;
-  }) => Promise<{ ok: boolean; message: string }>;
+    duplicateStrategy?: 'skip' | 'overwrite' | 'prompt';
+  }) => Promise<{ ok: boolean; message?: string }>;
 };
 type CardsBridge = {
+  readAll?: () => Promise<Card[]>;
   readOne?: (id: string) => Promise<Card | null>;
   update?: (card: Card) => Promise<boolean>;
   create?: (card: Card) => Promise<boolean>;
@@ -100,6 +107,21 @@ export default function ManualAddPage() {
   const [sfBusy, setSfBusy] = useState(false);
   const [sfMsg, setSfMsg] = useState<string>('');
   const [err, setErr] = useState<string | null>(null);
+
+  // Duplicate-prompt state + UX
+  const [dupPrompt, setDupPrompt] = useState<null | {
+    mode: 'stockfish' | 'full';
+    existingCardId: string;
+    existingCard?: Card;
+    existingDetails: any;
+    candidateDetails: any;
+    // For stockfish overwrite
+    payload?: any;
+    // For full overwrite
+    newCard?: Card;
+  }>(null);
+  const [dupWorking, setDupWorking] = useState(false);
+  const [dupErr, setDupErr] = useState<string | null>(null);
 
   // --- Full Manual Add ---
   const blankManual: ManualDraft = useMemo(
@@ -209,26 +231,141 @@ export default function ManualAddPage() {
     setHash(clampInt(Number.isFinite(v) ? v : hash, 32));
   };
 
+  function computeReviewFromInput(): { ok: boolean; reason?: string; sans: string[]; reviewFEN: string; deckId: string; pathKey: string } {
+    try {
+      if (inputKind === 'fen') {
+        const f = fen.trim();
+        if (!f) return { ok: false, reason: 'Enter a FEN.' } as any;
+        const parts = f.split(/\s+/);
+        const stm = parts[1] || 'w';
+        const deckId = stm === 'w' ? 'white-other' : 'black-other';
+        return { ok: true, sans: [], reviewFEN: f, deckId, pathKey: '' } as any;
+      }
+      let sans: string[] = [];
+      const c = new Chess();
+      if (inputKind === 'moves') {
+        sans = moves.trim().split(/\s+/).filter(Boolean);
+        for (const s of sans) { const mv = c.move(s); if (!mv) throw new Error(`Invalid SAN: ${s}`); }
+      } else {
+        // pgn
+        const s = pgn.trim();
+        if (!s) return { ok: false, reason: 'Enter a PGN.' } as any;
+        const ok = (c as any).loadPgn(s, { sloppy: true });
+        if (!ok) throw new Error('Invalid PGN');
+        sans = c.history();
+      }
+      const fenNow = c.fen();
+      const deckId = (fenNow.split(' ')[1] === 'w') ? 'white-other' : 'black-other';
+      const pathKey = sans.join(' ');
+      return { ok: true, sans, reviewFEN: fenNow, deckId, pathKey } as any;
+    } catch (e: any) {
+      return { ok: false, reason: e?.message || 'Invalid input', sans: [], reviewFEN: '', deckId: 'white-other', pathKey: '' } as any;
+    }
+  }
+
+  /** Build args for cardgen.makeCard(). Always include the move sequence when available. */
+  function buildCardgenArgsForInput(
+    inputKind: 'moves' | 'pgn' | 'fen',
+    review: { sans: string[] },
+    opts: {
+      duplicateStrategy: 'skip' | 'overwrite' | 'prompt',
+      acc: number,
+      moac: number,
+      depth: number,
+      threads: number,
+      hash: number,
+      hwThreads: number,
+      pgn: string,
+      fen: string,
+    }
+  ) {
+    const base = {
+      config: {
+        otherAnswersAcceptance: opts.acc,
+        maxOtherAnswerCount: opts.moac,
+        depth: opts.depth,
+        threads: Math.max(1, Math.min(opts.hwThreads, opts.threads)),
+        hash: Math.max(32, opts.hash),
+      },
+      duplicateStrategy: opts.duplicateStrategy,
+    } as any;
+
+    if (inputKind === 'fen') {
+      return { ...base, fen: opts.fen.trim() };
+    }
+
+    // For moves/PGN: include BOTH the array and a string version of the SAN sequence.
+    const sanList = review.sans || [];
+    const movesStr = sanList.join(' ');
+    const seq = { movesSAN: sanList, moves: movesStr };
+
+    if (inputKind === 'pgn') {
+      return { ...base, ...seq, pgn: opts.pgn.trim() };
+    }
+    // inputKind === 'moves'
+    return { ...base, ...seq };
+  }
+
   async function runStockfish() {
     setSfMsg('');
     setErr(null);
     setSaved(false);
 
-    const payload: any = {
-      config: {
-        otherAnswersAcceptance: acc,
-        maxOtherAnswerCount: moac,
-        depth,
-        threads: Math.max(1, Math.min(hwThreads, threads)),
-        hash: Math.max(32, hash),
-      },
-    };
-    if (inputKind === 'moves') payload.moves = moves.trim();
-    if (inputKind === 'pgn')   payload.pgn   = pgn.trim();
-    if (inputKind === 'fen')   payload.fen   = fen.trim();
-
-    if (!payload.moves && !payload.pgn && !payload.fen) {
+    if (!moves.trim() && !pgn.trim() && !fen.trim()) {
       setErr('Enter Moves, PGN, or FEN.');
+      return;
+    }
+
+    const review = computeReviewFromInput();
+    if (!review.ok) { setErr(review.reason || 'Invalid input'); return; }
+
+    const cardsApi = getCards();
+    if (!cardsApi?.readAll) { setErr('Backend not available: window.cards.readAll missing.'); return; }
+
+    const arr = await cardsApi.readAll?.();
+    const dup = Array.isArray(arr)
+      ? arr.find(c => c?.deck === review.deckId && (c?.fields?.moveSequence || '') === review.pathKey)
+      : undefined;
+
+    const argsSkip = buildCardgenArgsForInput(inputKind, review, {
+      duplicateStrategy: 'skip',
+      acc, moac, depth, threads, hash,
+      hwThreads,
+      pgn, fen,
+    });
+
+    const argsOverwrite = buildCardgenArgsForInput(inputKind, review, {
+      duplicateStrategy: 'overwrite',
+      acc, moac, depth, threads, hash,
+      hwThreads,
+      pgn, fen,
+    });
+
+    if (dup) {
+      // Show prompt with an overwrite payload that already includes the move sequence.
+      const existingDetails = dup?.fields?.creationCriteria || {
+        fallback: true,
+        fieldsSummary: {
+          moveSequence: dup?.fields?.moveSequence,
+          fen: dup?.fields?.fen,
+          answer: dup?.fields?.answer,
+          otherAnswers: dup?.fields?.otherAnswers,
+          eval: dup?.fields?.eval,
+        },
+      };
+      const candidateDetails = {
+        input: { movesSAN: review.sans.slice(), pgn: (pgn || ''), fen: review.reviewFEN },
+        configUsed: { otherAnswersAcceptance: acc, maxOtherAnswerCount: moac, depth, threads, hash, multipv: 1 + Math.max(0, moac) },
+      };
+      setDupErr(null);
+      setDupPrompt({
+        mode: 'stockfish',
+        existingCardId: dup.id,
+        existingCard: dup,
+        existingDetails,
+        candidateDetails,
+        payload: argsOverwrite,
+      });
       return;
     }
 
@@ -240,12 +377,9 @@ export default function ManualAddPage() {
 
     setSfBusy(true);
     try {
-      const res = await cardgen.makeCard(payload);
-      if (!res?.ok) {
-        setErr(res?.message || 'Failed to create card.');
-      } else {
-        setSfMsg(res.message);
-      }
+      const res = await cardgen.makeCard(argsSkip);
+      if (!res?.ok) setErr(res?.message || 'Failed to create card.');
+      else setSfMsg(res.message || 'Created.');
     } catch (e: any) {
       setErr(e?.message || 'Failed to create card.');
     } finally {
@@ -304,6 +438,37 @@ export default function ManualAddPage() {
       setErr('Backend not available: window.cards.create missing.');
       return;
     }
+    // Duplicate detection for Full Manual Add (by deck + moveSequence)
+    try {
+      const arr = await (getCards()?.readAll?.() || Promise.resolve([]));
+      const dup = Array.isArray(arr) ? arr.find(c => c?.deck === card.deck && (c?.fields?.moveSequence || '') === (card.fields.moveSequence || '')) : undefined;
+      if (dup) {
+        const existingDetails = dup?.fields?.creationCriteria || {
+          fallback: true,
+          fieldsSummary: {
+            moveSequence: dup?.fields?.moveSequence,
+            fen: dup?.fields?.fen,
+            answer: dup?.fields?.answer,
+            otherAnswers: dup?.fields?.otherAnswers,
+            eval: dup?.fields?.eval,
+          },
+        };
+        const candidateDetails = {
+          input: { manual: true },
+          fieldsSummary: card.fields,
+        };
+        setDupErr(null);
+        setDupPrompt({
+          mode: 'full',
+          existingCardId: dup.id,
+          existingCard: dup,
+          existingDetails,
+          candidateDetails,
+          newCard: { ...card, id: dup.id },
+        });
+        return; // wait for user choice
+      }
+    } catch {}
 
     setSaving(true);
     try {
@@ -318,21 +483,68 @@ export default function ManualAddPage() {
     }
   }
 
+  // Stable handler for the overwrite button (prevents any inline/hoisting oddities)
+  const confirmOverwrite = useCallback(async () => {
+    if (!dupPrompt) return;
+    setDupErr(null);
+    setDupWorking(true);
+    try {
+      if (dupPrompt.mode === 'stockfish') {
+        const cardgen = getCardgen();
+        if (!cardgen?.makeCard) {
+          setDupErr('Backend not available: window.cardgen.makeCard missing.');
+          return;
+        }
+        setSfBusy(true);
+        // no-op
+        const res = await cardgen.makeCard(dupPrompt.payload);
+        if (!res?.ok) {
+          setDupErr(res?.message || 'Failed to overwrite.');
+          return;
+        }
+        setSfMsg(res.message || 'Overwrote card.');
+        setDupPrompt(null);
+      } else {
+        const cardsApi = getCards();
+        if (!cardsApi?.update) {
+          setDupErr('Backend not available: window.cards.update missing.');
+          return;
+        }
+        setSaving(true);
+        // no-op
+        const ok = await cardsApi.update(dupPrompt.newCard!);
+        if (!ok) {
+          setDupErr('Failed to overwrite card.');
+          return;
+        }
+        setSaved(true);
+        setRoot({ id: newId() });
+        setDupPrompt(null);
+      }
+    } catch (e: any) {
+      setDupErr(e?.message || 'Unexpected error while overwriting.');
+    } finally {
+      setSfBusy(false);
+      setSaving(false);
+      setDupWorking(false);
+    }
+  }, [dupPrompt]);
+
   return (
     <div className="container">
       <div className="card grid" style={{ gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center,', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>Manual Add</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             {saved && <div className="sub" aria-live="polite">Saved</div>}
-            <button className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
+            <button type="button" className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
             {mode === 'full' && (
-              <button className="button" onClick={handleManualSave} disabled={saving} title="Create (Ctrl+S)">
+              <button type="button" className="button" onClick={handleManualSave} disabled={saving} title="Create (Ctrl+S)">
                 {saving ? 'Creating…' : 'Create'}
               </button>
             )}
             {mode === 'stockfish' && (
-              <button className="button" onClick={runStockfish} disabled={sfBusy} title="Create (Ctrl+S)">
+              <button type="button" className="button" onClick={runStockfish} disabled={sfBusy} title="Create (Ctrl+S)">
                 {sfBusy ? 'Creating…' : 'Create'}
               </button>
             )}
@@ -814,6 +1026,46 @@ export default function ManualAddPage() {
           </div>
         )}
       </div>
+
+      {/* Duplicate overwrite prompt */}
+      {dupPrompt && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Overwrite existing card confirmation"
+        >
+          <div style={{ background: '#fff', color: '#000', borderRadius: 8, width: 'min(900px, 92vw)', maxHeight: '85vh', overflow: 'auto', boxShadow: '0 10px 24px rgba(0,0,0,0.25)', padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <h3 style={{ margin: 0 }}>A card already exists for this PGN. Overwrite?</h3>
+              <button type="button" className="button secondary" onClick={() => setDupPrompt(null)}>Close</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Existing</div>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f7f7f7', border: '1px solid #ddd', borderRadius: 6, padding: 8 }}>
+{JSON.stringify(dupPrompt.existingDetails, null, 2)}
+                </pre>
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>New</div>
+                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f7f7f7', border: '1px solid #ddd', borderRadius: 6, padding: 8 }}>
+{JSON.stringify(dupPrompt.candidateDetails, null, 2)}
+                </pre>
+              </div>
+            </div>
+            {dupErr && (
+              <div className="sub" style={{ color: 'var(--danger, #d33)', marginTop: 8 }} aria-live="polite">{dupErr}</div>
+            )}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+              <button type="button" className="button secondary" onClick={() => setDupPrompt(null)} disabled={dupWorking}>Cancel</button>
+              <button type="button" className="button" onClick={confirmOverwrite} disabled={dupWorking}>
+                {dupWorking ? 'Overwriting…' : 'Overwrite'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
