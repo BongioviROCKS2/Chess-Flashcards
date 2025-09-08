@@ -1,3 +1,4 @@
+Add a stop button to Stockfish Assisted ManualAddPage when stockfish is running
 implement correct display order (oldest due date?)
 implement correct new card display order (child of longest interval parent?)
 improve scheduling (FSRS?)

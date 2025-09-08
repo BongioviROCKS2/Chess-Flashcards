@@ -588,9 +588,9 @@ export async function createCard({
       engineBest: bestAnswerSAN ? { move: bestAnswerSAN, eval: bestEval } : undefined,
       forced: (() => {
         const v = OVR[key4] ?? OVR[reviewFEN];
-        if (!v) return undefined;
+        if (!v) return null; // include key with null when not forced
         const move = (typeof v === 'string') ? v : (v && v.move) ? v.move : undefined;
-        return move ? { move } : undefined;
+        return move ? { move } : null;
       })(),
     };
     try {
