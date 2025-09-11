@@ -217,6 +217,31 @@ function useZoomShortcuts() {
 export default function App() {
   useZoomShortcuts();
 
+  // Global text sanitization to fix mojibake from smart quotes/ellipses
+  useEffect(() => {
+    const map: Record<string, string> = {
+      'â€™': "'",
+      'â€˜': "'",
+      'â€œ': '"',
+      'â€': '"',
+      'â€': '"',
+      'â€“': '-',
+      'â€”': '--',
+      'â€¦': '...',
+    } as any;
+    const many = Object.keys(map);
+    const fixNode = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        let t = (node.textContent || '');
+        for (const k of many) { if (t.includes(k)) t = t.split(k).join(map[k]); }
+        if (t !== node.textContent) node.textContent = t;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        for (const child of Array.from(node.childNodes)) fixNode(child);
+      }
+    };
+    try { fixNode(document.body); } catch {}
+  }, []);
+
   // Keep a CSS var of the app header height for sticky page titles
   useEffect(() => {
     const updateVar = () => {

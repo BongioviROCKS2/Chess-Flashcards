@@ -56,7 +56,7 @@
         "configUsed": {"otherAnswersAcceptance": 2.5, "maxOtherAnswerCount": 10, "depth": 36, "threads": 16, "hash": 32768, "multipv": 11, "acceptanceCpWindow": 250},
         "engineTimeMs": 1302482,
         "engineBest": {"move": "Ke2", "eval": {"kind": "cp", "value": 457, "depth": 36}},
-        "forced": undefined,
+        "forced": null,
         "enginePath": "engines/win-x64/stockfish17.1.exe"
       }
     },

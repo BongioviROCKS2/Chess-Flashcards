@@ -309,7 +309,6 @@ export default function EditCardPage() {
           <h2 style={{ margin: 0 }}>Edit Card</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', position: 'relative' }}>
             {saved && <div className="sub" aria-live="polite">Saved</div>}
-            <button className="button secondary" onClick={goBack}>Back</button>
             <button className="button" onClick={handleSave} disabled={saving} title="Save (Ctrl+S)">
               {saving ? 'Saving…' : 'Save'}
             </button>
@@ -333,6 +332,7 @@ export default function EditCardPage() {
                 </div>
               )}
             </div>
+            <button className="button secondary" onClick={goBack}>Back</button>
           </div>
         </div>
 

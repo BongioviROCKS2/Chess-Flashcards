@@ -23,6 +23,7 @@ declare global {
           hash: number;
         };
       }) => Promise<{ ok: boolean; message: string }>;
+      cancel?: () => void;
     };
 
     autogen?: {

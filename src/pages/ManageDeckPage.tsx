@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { getDeckById, getChildrenOf, getDeckPath, decks } from '../decks';
 import { allCards } from '../data/cardStore';
 import { DeckLimits, DeckLimitsDefaults, getDeckLimits, setDeckLimits, copyDeckLimits, getReviewedTodayCounts, getDueTypeCounts, planQueueForDeck, loadDeckLimitsFromFileIfAvailable } from '../state/deckLimits';
+import { rescheduleCardsInDeck } from '../state/scheduler';
+import { getPresets, setSchedulerConfig, PresetName } from '../state/schedulerConfig';
 
 function gatherDeckAndDescendants(deckId: string): string[] {
   const acc = new Set<string>();
@@ -111,6 +113,17 @@ export default function ManageDeckPage() {
     if (!deckId || !selectedCopyFrom) return;
     copyDeckLimits(selectedCopyFrom, deckId);
     setLimits(getDeckLimits(deckId));
+  };
+
+  // Reschedule tools
+  const [preset, setPreset] = useState<PresetName>('Standard');
+  const doResched = () => {
+    if (!deckId) return;
+    // Apply preset globally before reschedule
+    const presetCfg = getPresets().find(p => p.name === preset)!.config;
+    setSchedulerConfig({ ...presetCfg, preset });
+    const n = rescheduleCardsInDeck(deckId, true);
+    alert(`Rescheduled ${n} cards for this deck and descendants.`);
   };
 
   const applyToAllDecks = async () => {
@@ -327,6 +340,18 @@ export default function ManageDeckPage() {
             </div>
 
             <button className="button" onClick={() => exportDeck()} title="Export this deck and its descendants to Downloads">Export Deck</button>
+
+            {/* Reschedule */}
+            <div style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+              <span className="sub">Reschedule with</span>
+              <select value={preset} onChange={e => setPreset(e.currentTarget.value as PresetName)}
+                style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px' }}>
+                {getPresets().map(p => (
+                  <option key={p.name} value={p.name}>{p.name}</option>
+                ))}
+              </select>
+              <button className="button" onClick={doResched} title="Recalculate dues for all cards in this deck and its descendants">Reschedule Deck</button>
+            </div>
           </div>
         </div>
       </div>

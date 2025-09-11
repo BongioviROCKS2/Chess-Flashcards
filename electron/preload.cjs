@@ -8,6 +8,7 @@ try {
   contextBridge.exposeInMainWorld('cardgen', {
     saveConfig: (cfg) => ipcRenderer.invoke('cardgen:save-config', cfg),
     makeCard:  (args) => ipcRenderer.invoke('cardgen:make-card', args),
+    cancel:    () => ipcRenderer.send('cardgen:cancel'),
   });
 
   // Auto-generation from historical games (Chess.com)

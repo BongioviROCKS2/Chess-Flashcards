@@ -258,6 +258,14 @@ export default function ReviewPage() {
               Undo
             </button>
             <button className="button" onClick={handleFlip} title={`Flip board${keysFor('board.flip') ? ` (${keysFor('board.flip')})` : ''}`}>Flip</button>
+            <button
+              className="button"
+              onClick={() => { if (current) navigate(`/edit/${current.id}`, { state: { card: current, from: 'review' } }); }}
+              disabled={!current}
+              title="Edit this card"
+            >
+              Edit
+            </button>
             <button className="button secondary" onClick={handleBack} title={`Back${keysFor('app.back') ? ` (${keysFor('app.back')})` : ''}`}>Back</button>
           </div>
         </div>

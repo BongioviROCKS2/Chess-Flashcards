@@ -109,7 +109,7 @@ export default function Board({
         const y = Math.floor(idx / 8);
         // we need to invert mapping to compute color pattern correctly regardless of orientation
         // draw coordinates are already top-left origin; color pattern should be consistent (a1 = dark)
-        const isLight = (x + y) % 2 === 1;
+        const isLight = (x + y) % 2 === 0;
         return (
           <rect
             key={`sq-${x}-${y}`}

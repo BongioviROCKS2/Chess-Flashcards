@@ -3,6 +3,7 @@ import { useBackKeybind } from '../hooks/useBackKeybind';
 import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
 import React, { useMemo, useState } from 'react';
 import { allCards } from '../data/cardStore';
+import { getMeta as getSchedMeta } from '../state/scheduler';
 import { decks, getDeckPathNames, getDescendantDeckIds } from '../decks';
 
 type Grade = 'again' | 'hard' | 'good' | 'easy';
@@ -16,6 +17,9 @@ type Entry = {
   wasNew?: boolean;
   newDueISO?: string;
   durationMs?: number;
+  state?: 'new' | 'learning' | 'relearning' | 'graduated';
+  ease?: number;
+  stabilityDays?: number;
 };
 const LOG_KEY = 'chessflashcards.reviewLog.v1';
 const SNAP_KEY = 'chessflashcards.statsSnapshots.v1';
@@ -129,22 +133,18 @@ export default function StatsPage() {
     let durSum = 0, durCount = 0;
     let newCorrect = 0, newTotal = 0;
     let matureCorrect = 0, matureTotal = 0;
+    let easeSum = 0, easeCount = 0;
+    let stabSum = 0, stabCount = 0;
     for (const e of filtered) {
-      if (e.durationMs && Number.isFinite(e.durationMs)) {
-        durSum += e.durationMs!;
-        durCount++;
-      }
+      if (e.durationMs && Number.isFinite(e.durationMs)) { durSum += e.durationMs!; durCount++; }
       const isCorrect = e.grade !== 'again';
       if (isCorrect) correct++; else incorrect++;
-      // Approx classification: rely on wasNew/newInt if present; else infer from prevInt
       const wasNew = typeof e.wasNew === 'boolean' ? e.wasNew : undefined;
-      const prevDays = (e.prevInt ?? 0) / (60 * 24);
-      const mature = (e.prevInt ?? 0) >= (21 * 24 * 60); // 21d threshold
-      if (wasNew === true || (e.prevInt != null && e.prevInt <= 0)) {
-        newTotal++; if (isCorrect) newCorrect++;
-      } else if (mature || e.prevInt != null) {
-        matureTotal++; if (isCorrect) matureCorrect++;
-      }
+      const mature = (e.prevInt ?? 0) >= (21 * 24 * 60);
+      if (wasNew === true || (e.prevInt != null && e.prevInt <= 0)) { newTotal++; if (isCorrect) newCorrect++; }
+      else if (mature || e.prevInt != null) { matureTotal++; if (isCorrect) matureCorrect++; }
+      if (typeof e.ease === 'number') { easeSum += e.ease; easeCount++; }
+      if (typeof e.stabilityDays === 'number') { stabSum += e.stabilityDays; stabCount++; }
     }
     return {
       correct,
@@ -154,6 +154,8 @@ export default function StatsPage() {
       newRate: newTotal ? (newCorrect / newTotal) : undefined,
       matureRate: matureTotal ? (matureCorrect / matureTotal) : undefined,
       counts: { newTotal, matureTotal },
+      avgEase: easeCount ? (easeSum / easeCount) : undefined,
+      avgStabilityDays: stabCount ? (stabSum / stabCount) : undefined,
     };
   }, [filtered]);
 
@@ -334,16 +336,32 @@ export default function StatsPage() {
   };
   const deleteSnapshot = (ts: number) => { const s = snaps.filter(x => x.ts !== ts); saveSnaps(s); };
 
+  // --- Scheduler metrics from current meta store ---
+  const schedMetrics = useMemo(() => {
+    const cards = allCards();
+    let easeSum = 0, easeCount = 0, stabSum = 0, stabCount = 0;
+    for (const c of cards) {
+      const m = getSchedMeta(c.id) as any;
+      if (!m) continue;
+      if (typeof m.ease === 'number') { easeSum += m.ease; easeCount++; }
+      if (typeof m.stability === 'number') { stabSum += m.stability; stabCount++; }
+    }
+    return {
+      avgEase: easeCount ? (easeSum / easeCount) : undefined,
+      avgStabilityDays: stabCount ? (stabSum / stabCount) : undefined,
+    };
+  }, [_]);
+
   return (
     <div className="container">
       <div className="card grid">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0 }}>Stats</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="button secondary" onClick={exportCsv} title="Export filtered reviews to CSV">Export CSV</button>
-            <button className="button secondary" onClick={exportJson} title="Export current stats as JSON">Export JSON</button>
-            <button className="button secondary" onClick={addSnapshot} title="Store snapshot for later comparison">Snapshot</button>
-            <button className="button secondary" onClick={clear} title="Clear review log">Clear</button>
+            <button className="button" onClick={exportCsv} title="Export filtered reviews to CSV">Export CSV</button>
+            <button className="button" onClick={exportJson} title="Export current stats as JSON">Export JSON</button>
+            <button className="button" onClick={addSnapshot} title="Store snapshot for later comparison">Snapshot</button>
+            <button className="button" onClick={clear} title="Clear review log">Clear</button>
             <button className="button secondary" onClick={onBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
           </div>
         </div>
@@ -526,6 +544,13 @@ export default function StatsPage() {
               )}
             </div>
           )}
+
+          {/* Scheduler Metrics */}
+          <div className="section">
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>Scheduler Metrics</div>
+            <div className="sub">Average ease: <strong>{typeof schedMetrics.avgEase === 'number' ? schedMetrics.avgEase.toFixed(2) : '—'}</strong></div>
+            <div className="sub">Average stability: <strong>{typeof schedMetrics.avgStabilityDays === 'number' ? schedMetrics.avgStabilityDays.toFixed(1) + 'd' : '—'}</strong></div>
+          </div>
 
           {/* Snapshots */}
           <div className="section">

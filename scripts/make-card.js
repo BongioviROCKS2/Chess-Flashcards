@@ -37,6 +37,19 @@ const CARDS_PATH = path.resolve(ROOT, 'src', 'data', 'cards.json');
 const CONFIG_PATH = path.resolve(ROOT, 'src', 'data', 'cardgen.config.json');
 const ANS_OVR_PATH = path.resolve(ROOT, 'src', 'data', 'answer-overrides.json');
 
+// Allow the Electron app to cancel an in-flight Stockfish analysis
+let CURRENT_ENGINE = null;
+let CANCEL_REQUESTED = false;
+export function cancelCurrent() {
+  try {
+    CANCEL_REQUESTED = true;
+    if (CURRENT_ENGINE) {
+      try { CURRENT_ENGINE.stdin.end(); } catch {}
+      try { CURRENT_ENGINE.kill(); } catch {}
+    }
+  } catch {}
+}
+
 // ---------- CLI ----------
 function parseArgs(argv) {
   const out = {};
@@ -254,16 +267,26 @@ function uciToSanLine(initialFen, uciMoves) {
 }
 async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }, resolveOpts = {}) {
   return await new Promise((resolve, reject) => {
+    if (CANCEL_REQUESTED) {
+      CANCEL_REQUESTED = false;
+      return reject(new Error('cancelled'));
+    }
     const child = startEngine(resolveOpts);
+    CURRENT_ENGINE = child;
     const pvMap = new Map(); // multipv -> latest info
     let settled = false;
 
     const finish = (ok = true) => {
       if (settled) return; settled = true;
       try { child.stdin.end(); child.kill(); } catch {}
+      CURRENT_ENGINE = null;
       const keys = [...pvMap.keys()].sort((a, b) => a - b);
       if (ok && keys.length) return resolve(keys.map(k => pvMap.get(k)));
       if (ok) return resolve([]);
+      if (CANCEL_REQUESTED) {
+        CANCEL_REQUESTED = false;
+        return reject(new Error('cancelled'));
+      }
       return reject(new Error('engine failed'));
     };
 
@@ -296,6 +319,9 @@ async function analyzeWithStockfish(fen, { depth, threads, hash, multipv }, reso
     } catch {}
 
     child.once('error', () => { clearTimeout(timer); finish(false); });
+    // Ensure the promise settles if the engine exits early (e.g., cancelled)
+    try { child.once('close', () => { clearTimeout(timer); finish(false); }); } catch {}
+    try { child.once('exit',  () => { clearTimeout(timer); finish(false); }); } catch {}
 
     // Correct MultiPV flow: set via setoption, NOT in "go" command.
     send(child, 'uci');

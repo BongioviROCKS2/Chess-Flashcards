@@ -378,14 +378,28 @@ export default function ManualAddPage() {
     setSfBusy(true);
     try {
       const res = await cardgen.makeCard(argsSkip);
-      if (!res?.ok) setErr(res?.message || 'Failed to create card.');
+      if (!res?.ok) {
+        const msg = String(res?.message || '').toLowerCase();
+        if (msg.includes('cancel')) setSfMsg('Cancelled');
+        else setErr(res?.message || 'Failed to create card.');
+      }
       else setSfMsg(res.message || 'Created.');
     } catch (e: any) {
-      setErr(e?.message || 'Failed to create card.');
+      const m = String(e?.message || '').toLowerCase();
+      if (m.includes('cancel')) setSfMsg('Cancelled');
+      else setErr(e?.message || 'Failed to create card.');
     } finally {
       setSfBusy(false);
     }
   }
+
+  const cancelStockfish = useCallback(() => {
+    try { (window as any).cardgen?.cancel?.(); } catch {}
+    setErr(null);
+    setSfMsg('Cancelled');
+    setSfBusy(false);
+    setDupWorking(false);
+  }, []);
 
   const setRoot = (patch: Partial<ManualDraft>) => {
     setDraft(prev => ({ ...prev, ...patch }));
@@ -499,7 +513,9 @@ export default function ManualAddPage() {
         // no-op
         const res = await cardgen.makeCard(dupPrompt.payload);
         if (!res?.ok) {
-          setDupErr(res?.message || 'Failed to overwrite.');
+          const msg = String(res?.message || '').toLowerCase();
+          if (msg.includes('cancel')) setDupErr('Cancelled');
+          else setDupErr(res?.message || 'Failed to overwrite.');
           return;
         }
         setSfMsg(res.message || 'Overwrote card.');
@@ -522,7 +538,9 @@ export default function ManualAddPage() {
         setDupPrompt(null);
       }
     } catch (e: any) {
-      setDupErr(e?.message || 'Unexpected error while overwriting.');
+      const m = String(e?.message || '').toLowerCase();
+      if (m.includes('cancel')) setDupErr('Cancelled');
+      else setDupErr(e?.message || 'Unexpected error while overwriting.');
     } finally {
       setSfBusy(false);
       setSaving(false);
@@ -537,17 +555,22 @@ export default function ManualAddPage() {
           <h2 style={{ margin: 0 }}>Manual Add</h2>
           <div style={{ display: 'flex', gap: 8 }}>
             {saved && <div className="sub" aria-live="polite">Saved</div>}
-            <button type="button" className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
             {mode === 'full' && (
               <button type="button" className="button" onClick={handleManualSave} disabled={saving} title="Create (Ctrl+S)">
                 {saving ? 'Creating…' : 'Create'}
               </button>
             )}
             {mode === 'stockfish' && (
-              <button type="button" className="button" onClick={runStockfish} disabled={sfBusy} title="Create (Ctrl+S)">
-                {sfBusy ? 'Creating…' : 'Create'}
-              </button>
+              <>
+                <button type="button" className="button" onClick={runStockfish} disabled={sfBusy} title="Create (Ctrl+S)">
+                  {sfBusy ? 'Creating…' : 'Create'}
+                </button>
+                {sfBusy && (
+                  <button type="button" className="button secondary" onClick={cancelStockfish} title="Cancel run">Cancel</button>
+                )}
+              </>
             )}
+            <button type="button" className="button secondary" onClick={goBack} title={`Back${backKeys ? ` (${backKeys})` : ''}`}>Back</button>
           </div>
         </div>
 
@@ -1059,6 +1082,11 @@ export default function ManualAddPage() {
             )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
               <button type="button" className="button secondary" onClick={() => setDupPrompt(null)} disabled={dupWorking}>Cancel</button>
+              {dupPrompt.mode === 'stockfish' && dupWorking && (
+                <button type="button" className="button secondary" onClick={cancelStockfish}>
+                  Cancel Run
+                </button>
+              )}
               <button type="button" className="button" onClick={confirmOverwrite} disabled={dupWorking}>
                 {dupWorking ? 'Overwriting…' : 'Overwrite'}
               </button>

@@ -465,6 +465,19 @@ function registerIpc() {
     }
   });
 
+  // Allow renderer to cancel in-flight card generation (kill Stockfish)
+  ipcMain.on('cardgen:cancel', async () => {
+    try {
+      const script = path.resolve(ROOT, 'scripts', 'make-card.js');
+      const mod = await import(pathToFileURL(script).href);
+      if (typeof mod.cancelCurrent === 'function') {
+        try { mod.cancelCurrent(); } catch {}
+      }
+    } catch (e) {
+      console.warn('[ipc:cardgen:cancel] failed to signal cancel:', e);
+    }
+  });
+
   // Cards file I/O
   ipcMain.handle('cards:readOne', async (_evt, id) => {
     try {
