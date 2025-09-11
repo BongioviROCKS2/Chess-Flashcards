@@ -1,7 +1,8 @@
 import { Card } from '../data/types';
-import { allCards, getDueCardsForDeck } from '../data/cardStore';
+import { allCards, getDueCardsForDeck, getCardDue } from '../data/cardStore';
 import { getChildrenOf } from '../decks';
 import { getMeta } from './scheduler';
+import { getSchedulingPrefs } from './schedulingPrefs';
 
 export type DeckLimits = {
   new: { enabled: boolean; limit: number };
@@ -190,6 +191,112 @@ export function planQueueForDeck(deckId: string): QueuePlan {
   const outIds: string[] = [];
   const byType = { new: 0, mature: 0, leech: 0, young: 0 } as const;
   const included: { new: number; mature: number; leech: number; young: number; total: number } = { new: 0, mature: 0, leech: 0, young: 0, total: 0 };
+  const prefs = getSchedulingPrefs();
+
+  // Utility: classify and helpers
+  const dueTime = (cid: string): number => {
+    const d = getCardDue(cid) as string | 'new' | undefined;
+    if (!d || d === 'new') return Number.POSITIVE_INFINITY; // 'new' has no due time
+    const t = Date.parse(d);
+    return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
+  };
+  const parentIntervalMin = (cid: string): number => {
+    const map = new Map(allCards().map(c => [c.id, c]));
+    const c = map.get(cid);
+    const p = c?.fields.parent;
+    if (!p) return 0;
+    const m = getMeta(p);
+    return Math.max(0, m?.intervalMin ?? 0);
+  };
+  const createdAtMs = (c: typeof due[number]): number => {
+    try {
+      const iso = (c?.fields?.creationCriteria?.createdAt) as string | undefined;
+      const t = iso ? Date.parse(iso) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    } catch { return 0; }
+  };
+
+  // Partition due into new vs review
+  const dueNew = due.filter(c => classifyCard(c, limits) === 'new');
+  const dueReview = due.filter(c => classifyCard(c, limits) !== 'new');
+
+  // Sort new cards based on prefs
+  let newSorted = [...dueNew];
+  if (prefs.newPick === 'random') {
+    newSorted.sort(() => Math.random() - 0.5);
+  } else if (prefs.newPick === 'newest-created-first') {
+    newSorted.sort((a, b) => {
+      const d = createdAtMs(b) - createdAtMs(a); // newest first
+      if (d !== 0) return d;
+      if (prefs.groupByDeck && a.deck !== b.deck) return a.deck.localeCompare(b.deck);
+      return a.id.localeCompare(b.id);
+    });
+  } else /* parent-longest-interval */ {
+    newSorted.sort((a, b) => {
+      const ai = parentIntervalMin(a.id);
+      const bi = parentIntervalMin(b.id);
+      const cmp = bi - ai; // longest first
+      if (cmp !== 0) return cmp;
+      if (prefs.groupByDeck && a.deck !== b.deck) return a.deck.localeCompare(b.deck);
+      const ad = a.fields.depth ?? 0;
+      const bd = b.fields.depth ?? 0;
+      if (ad !== bd) return ad - bd;
+      return a.id.localeCompare(b.id);
+    });
+  }
+
+  // Sort review cards based on prefs
+  let reviewSorted: typeof dueReview = [];
+  if (prefs.reviewOrder === 'due-date') {
+    if (prefs.groupByDeck) {
+      // Group by deck, then sort within by due date
+      const deckMap = new Map<string, typeof dueReview>();
+      for (const c of dueReview) {
+        const arr = deckMap.get(c.deck) || [];
+        arr.push(c);
+        deckMap.set(c.deck, arr);
+      }
+      const decks = [...deckMap.keys()].sort((a, b) => a.localeCompare(b));
+      for (const d of decks) {
+        const arr = deckMap.get(d)!;
+        arr.sort((a, b) => {
+          const dt = dueTime(a.id) - dueTime(b.id);
+          if (dt !== 0) return dt;
+          const ad = a.fields.depth ?? 0;
+          const bd = b.fields.depth ?? 0;
+          if (ad !== bd) return ad - bd;
+          return a.id.localeCompare(b.id);
+        });
+        reviewSorted.push(...arr);
+      }
+    } else {
+      reviewSorted = [...dueReview].sort((a, b) => {
+        const dt = dueTime(a.id) - dueTime(b.id);
+        if (dt !== 0) return dt;
+        const ad = a.fields.depth ?? 0;
+        const bd = b.fields.depth ?? 0;
+        if (ad !== bd) return ad - bd;
+        return a.id.localeCompare(b.id);
+      });
+    }
+  } else { // random
+    if (prefs.groupByDeck) {
+      const deckMap = new Map<string, typeof dueReview>();
+      for (const c of dueReview) {
+        const arr = deckMap.get(c.deck) || [];
+        arr.push(c);
+        deckMap.set(c.deck, arr);
+      }
+      const decks = [...deckMap.keys()].sort((a, b) => a.localeCompare(b));
+      for (const d of decks) {
+        const arr = deckMap.get(d)!;
+        arr.sort(() => Math.random() - 0.5);
+        reviewSorted.push(...arr);
+      }
+    } else {
+      reviewSorted = [...dueReview].sort(() => Math.random() - 0.5);
+    }
+  }
 
   const typeLimitLeft = (type: 'new' | 'mature' | 'leech') => {
     const conf = limits[type];
@@ -200,21 +307,78 @@ export function planQueueForDeck(deckId: string): QueuePlan {
 
   const cumulativeLeft = () => Math.max(0, limits.cumulativeLimit - (already.total + included.total));
 
-  for (const c of due) {
+  // Build final queue honoring ordering prefs and limits
+  const takeCard = (c: typeof due[number]) => {
     const t = classifyCard(c, limits);
-    // Respect per-type limits if enabled
     let typeAllowed = true;
     if (t === 'new') typeAllowed = typeLimitLeft('new') > 0;
     else if (t === 'leech') typeAllowed = typeLimitLeft('leech') > 0;
-    else if (t === 'mature') typeAllowed = typeLimitLeft('mature') > 0; // young is not limited per-type
-
-    if (!typeAllowed) continue;
-    if (cumulativeLeft() <= 0) break; // stop entirely if we hit cumulative limit
-
+    else if (t === 'mature') typeAllowed = typeLimitLeft('mature') > 0; // young has no per-type limit
+    if (!typeAllowed) return false;
+    if (cumulativeLeft() <= 0) return false;
     outIds.push(c.id);
     (included as any)[t]++;
     included.total++;
-  }
+    return true;
+  };
+
+  const pushByOrder = () => {
+    let iNew = 0;
+    let iRev = 0;
+    const rev = reviewSorted;
+    const neu = newSorted;
+
+    if (prefs.newVsReviewOrder === 'new-first') {
+      while (iNew < neu.length && cumulativeLeft() > 0) {
+        const c = neu[iNew++];
+        takeCard(c);
+      }
+      while (iRev < rev.length && cumulativeLeft() > 0) {
+        const c = rev[iRev++];
+        takeCard(c);
+      }
+    } else if (prefs.newVsReviewOrder === 'review-first') {
+      while (iRev < rev.length && cumulativeLeft() > 0) {
+        const c = rev[iRev++];
+        takeCard(c);
+      }
+      while (iNew < neu.length && cumulativeLeft() > 0) {
+        const c = neu[iNew++];
+        takeCard(c);
+      }
+    } else {
+      // interleave: 1 new per N reviews
+      const N = Math.max(1, prefs.interleaveRatio | 0);
+      let nextNew = true;
+      let reviewStreak = 0;
+      while ((iNew < neu.length || iRev < rev.length) && cumulativeLeft() > 0) {
+        if (nextNew && iNew < neu.length) {
+          const added = takeCard(neu[iNew]);
+          iNew++;
+          nextNew = false;
+          reviewStreak = 0;
+          // if couldn't add due to limits, continue interleaving progression
+        } else if (!nextNew && iRev < rev.length) {
+          const added = takeCard(rev[iRev]);
+          iRev++;
+          reviewStreak++;
+          if (reviewStreak >= N) { nextNew = true; reviewStreak = 0; }
+        } else if (iRev >= rev.length && iNew < neu.length) {
+          // only new left
+          const added = takeCard(neu[iNew]);
+          iNew++;
+        } else if (iNew >= neu.length && iRev < rev.length) {
+          // only review left
+          const added = takeCard(rev[iRev]);
+          iRev++;
+        } else {
+          break;
+        }
+      }
+    }
+  };
+
+  pushByOrder();
 
   return {
     ids: outIds,
@@ -241,4 +405,3 @@ export function getDueTypeCounts(deckId: string): { new: number; mature: number;
 }
 
 export const DeckLimitsDefaults = DEFAULTS;
-

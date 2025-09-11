@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useSettings } from '../state/settings';
 import { getSchedulerConfig, setSchedulerConfig, getPresets, SchedulerConfig } from '../state/schedulerConfig';
 import { useKeybinds, formatActionKeys } from '../context/KeybindsProvider';
+import { getSchedulingPrefs, setSchedulingPrefs, CardSchedulingPrefs } from '../state/schedulingPrefs';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 type CardgenConfig = {
@@ -92,6 +93,13 @@ export default function SettingsPage() {
   }, [cfgDirty, currentCfg]);
 
   const lightThemeChecked = settings.theme === 'light';
+
+  // ---- Card Scheduling (display ordering) ----
+  const [schedPrefs, setSchedPrefs] = useState<CardSchedulingPrefs>(() => getSchedulingPrefs());
+  const saveSchedPrefs = (patch: Partial<CardSchedulingPrefs>) => {
+    const next = setSchedulingPrefs(patch);
+    setSchedPrefs(next);
+  };
 
   // ---- Scheduler settings ----
   const [sched, setSched] = useState<SchedulerConfig>(() => getSchedulerConfig());
@@ -386,6 +394,87 @@ export default function SettingsPage() {
             <div>Forced Answers</div>
             <div className="sub">Manage per-position overrides</div>
             <button className="button" onClick={async () => { await maybeSaveCardgenConfig(); navigate('/settings/forced-answers', { state: { from: location } }); }} style={{ justifySelf: 'end' }}>Manage</button>
+          </div>
+        </div>
+
+        {/* Card Ordering */}
+        <div className="section">
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Card Ordering</div>
+          <div className="sub" style={{ marginBottom: 8 }}>Control how cards are ordered for review.</div>
+
+          {/* New vs Review order */}
+          <div className="row" title="Decide whether to see new cards or review cards first" style={{ display: 'grid', gridTemplateColumns: '220px 1fr max-content', gap: 12, alignItems: 'center' }}>
+            <div>Order: New vs Reviews</div>
+            <div className="sub">Default: New cards first</div>
+            <select
+              value={schedPrefs.newVsReviewOrder}
+              onChange={e => saveSchedPrefs({ newVsReviewOrder: e.currentTarget.value as CardSchedulingPrefs['newVsReviewOrder'] })}
+              style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 10px', justifySelf: 'end' }}
+            >
+              <option value="new-first" style={{ background: '#ffffff', color: '#000000' }}>New first</option>
+              <option value="review-first" style={{ background: '#ffffff', color: '#000000' }}>Reviews first</option>
+              <option value="interleave" style={{ background: '#ffffff', color: '#000000' }}>Interleave</option>
+            </select>
+          </div>
+
+          {/* Interleave ratio (conditional) */}
+          {schedPrefs.newVsReviewOrder === 'interleave' && (
+            <div className="row" title="Show 1 new card every N reviews" style={{ display: 'grid', gridTemplateColumns: '220px 1fr max-content', gap: 12, alignItems: 'center' }}>
+              <div>Interleave Ratio</div>
+              <div className="sub">1 new per N reviews</div>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={String(schedPrefs.interleaveRatio)}
+                onChange={e => {
+                  const v = Math.max(1, parseInt(e.currentTarget.value || '1', 10));
+                  saveSchedPrefs({ interleaveRatio: v });
+                }}
+                style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 8px', justifySelf: 'end', width: 120, textAlign: 'right' }}
+              />
+            </div>
+          )}
+
+          {/* New card selection */}
+          <div className="row" title="Choose which new cards to introduce first" style={{ display: 'grid', gridTemplateColumns: '220px 1fr max-content', gap: 12, alignItems: 'center' }}>
+            <div>New Card Selection</div>
+            <div className="sub">Default: Longest parent interval first</div>
+            <select
+              value={schedPrefs.newPick}
+              onChange={e => saveSchedPrefs({ newPick: e.currentTarget.value as CardSchedulingPrefs['newPick'] })}
+              style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 10px', justifySelf: 'end' }}
+            >
+              <option value="parent-longest-interval" style={{ background: '#ffffff', color: '#000000' }}>Longest Parent Interval First</option>
+              <option value="newest-created-first" style={{ background: '#ffffff', color: '#000000' }}>Newest Created First</option>
+              <option value="random" style={{ background: '#ffffff', color: '#000000' }}>Random</option>
+            </select>
+          </div>
+
+          {/* Review ordering */}
+          <div className="row" title="Order reviews by due date or random" style={{ display: 'grid', gridTemplateColumns: '220px 1fr max-content', gap: 12, alignItems: 'center' }}>
+            <div>Review Ordering</div>
+            <div className="sub">Default: By due date</div>
+            <select
+              value={schedPrefs.reviewOrder}
+              onChange={e => saveSchedPrefs({ reviewOrder: e.currentTarget.value as CardSchedulingPrefs['reviewOrder'] })}
+              style={{ backgroundColor: '#ffffff', color: '#000000', border: '1px solid var(--border-strong)', borderRadius: 8, padding: '6px 10px', justifySelf: 'end' }}
+            >
+              <option value="due-date" style={{ background: '#ffffff', color: '#000000' }}>By due date (earliest first)</option>
+              <option value="random" style={{ background: '#ffffff', color: '#000000' }}>Random</option>
+            </select>
+          </div>
+
+          {/* Group by deck toggle */}
+          <div className="row" title="Keep cards from the same deck together" style={{ display: 'grid', gridTemplateColumns: '220px 1fr max-content', gap: 12, alignItems: 'center' }}>
+            <div>Group by Deck</div>
+            <div className="sub">Deck-aware ordering</div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifySelf: 'end' }}>
+              <input
+                type="checkbox"
+                checked={!!schedPrefs.groupByDeck}
+                onChange={e => saveSchedPrefs({ groupByDeck: e.currentTarget.checked })}
+              />
+            </label>
           </div>
         </div>
 

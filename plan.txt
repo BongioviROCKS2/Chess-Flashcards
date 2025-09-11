@@ -27,6 +27,7 @@ Add daily opening game challenge
     add as a discord game/activity
 add ability to duplicate a card in collection view
 Add readme
+Create wiki for how to use the app
 convert application to run on an iphone/android
     implement cloud sync across devices
     add notifications for reviews or challenges
@@ -43,3 +44,4 @@ On Forced answer page, fix Remove display and drop down display
 Auto Add should only consider creating descendants of unarchived cards?
     if they want to create descendants of archived cards, they can unarchive them, then run auto add.
     I have not yet considered if/how this affects forced answers.
+Remove description column from settings page (because hover hints exist)
