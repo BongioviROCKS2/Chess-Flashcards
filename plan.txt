@@ -1,5 +1,3 @@
-implement correct display order (oldest due date?)
-implement correct new card display order (child of longest interval parent?)
 Implement other flashcard review features from within the Anki app to this app (stats, settings, buttons, customizations, deck options, etc.)
 add/remove items from the file,edit,view,window,help bar on tooltips
     ensure that the basic menu buttons are all real features in the app (copy, paste, redo, etc.)

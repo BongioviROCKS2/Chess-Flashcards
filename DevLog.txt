@@ -80,10 +80,12 @@
         Format cards.json to keep example line in a single row, and each other answer in its own row
         add timer print to say how long stockfish thought when making the card. include on card as creationCriteria subfield
 9/10/25:
-    11pm:
+    3 hours:
         FIXED: The image for the boards in the collection preview and review pages are flipped. (queen not on color)
         Add Edit button back to review
         Format buttons to be white and in top right if Back, blue otherwise
         Add a cancel button to Stockfish Assisted ManualAddPage when stockfish is running
         improve scheduling (FSRS?)
             allow customization to scheduling algorithm?
+        implement correct display order
+        implement correct new card display order

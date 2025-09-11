@@ -242,6 +242,39 @@ export default function App() {
     try { fixNode(document.body); } catch {}
   }, []);
 
+  // Normalize any mojibake occurrences across the app (apostrophes/ellipses)
+  useEffect(() => {
+    const demojibake = (s: string): string => {
+      try {
+        // Convert UTF-8 bytes mis-read as Latin-1 back to Unicode (e.g., â€™ -> ’)
+        return decodeURIComponent(escape(s));
+      } catch { return s; }
+    };
+    const normalize = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const cur = node.textContent || '';
+        const fixed = demojibake(cur)
+          .replace(/\u2018|\u2019/g, "'")
+          .replace(/\u201C|\u201D/g, '"')
+          .replace(/\u2026/g, '...')
+          .replace(/\u2013/g, '-')
+          .replace(/\u2014/g, '--');
+        if (fixed !== cur) node.textContent = fixed;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        for (const child of Array.from(node.childNodes)) normalize(child);
+      }
+    };
+    try { normalize(document.body); } catch {}
+    const mo = new MutationObserver(muts => {
+      for (const m of muts) {
+        m.addedNodes && m.addedNodes.forEach(n => normalize(n));
+        if (m.type === 'characterData' && m.target) normalize(m.target as Node);
+      }
+    });
+    try { mo.observe(document.body, { childList: true, characterData: true, subtree: true }); } catch {}
+    return () => { try { mo.disconnect(); } catch {} };
+  }, []);
+
   // Keep a CSS var of the app header height for sticky page titles
   useEffect(() => {
     const updateVar = () => {
